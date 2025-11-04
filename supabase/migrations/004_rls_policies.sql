@@ -27,7 +27,7 @@ BEGIN
   RETURN EXISTS (
     SELECT 1 FROM admin_roles
     WHERE user_id = $1
-    AND parent_organization_id = $2
+    AND organization_id = $2
     AND role_type IN ('org_admin', 'platform_admin', 'super_admin')
     AND is_active = true
   );
@@ -66,10 +66,10 @@ CREATE OR REPLACE FUNCTION get_user_org_ids(user_id uuid)
 RETURNS TABLE(org_id uuid) AS $$
 BEGIN
   RETURN QUERY
-  SELECT DISTINCT parent_organization_id FROM admin_roles
+  SELECT DISTINCT organization_id FROM admin_roles
   WHERE user_id = $1 AND is_active = true
   UNION
-  SELECT DISTINCT t.parent_organization_id FROM team_members tm
+  SELECT DISTINCT t.organization_id FROM team_members tm
   JOIN teams t ON tm.team_id = t.id
   WHERE tm.user_id = $1 AND tm.status = 'active';
 END;
@@ -119,13 +119,13 @@ ALTER TABLE organization_sports ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "org_sports_read" ON organization_sports FOR SELECT
   USING (
     is_platform_admin(auth.uid()) OR
-    parent_organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid()))
+    organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid()))
   );
 
 CREATE POLICY "org_sports_admin" ON organization_sports FOR ALL
   USING (
     is_platform_admin(auth.uid()) OR
-    is_org_admin(auth.uid(), parent_organization_id)
+    is_org_admin(auth.uid(), organization_id)
   );
 
 -- 1.4. teams
@@ -134,14 +134,14 @@ ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "teams_read_member" ON teams FOR SELECT
   USING (
     is_platform_admin(auth.uid()) OR
-    parent_organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid())) OR
+    organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid())) OR
     id IN (SELECT team_id FROM get_user_team_ids(auth.uid()))
   );
 
 CREATE POLICY "teams_admin" ON teams FOR ALL
   USING (
     is_platform_admin(auth.uid()) OR
-    is_org_admin(auth.uid(), parent_organization_id) OR
+    is_org_admin(auth.uid(), organization_id) OR
     is_team_admin(auth.uid(), id)
   );
 
@@ -151,13 +151,13 @@ ALTER TABLE seasons ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "seasons_read" ON seasons FOR SELECT
   USING (
     is_platform_admin(auth.uid()) OR
-    parent_organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid()))
+    organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid()))
   );
 
 CREATE POLICY "seasons_admin" ON seasons FOR ALL
   USING (
     is_platform_admin(auth.uid()) OR
-    is_org_admin(auth.uid(), parent_organization_id)
+    is_org_admin(auth.uid(), organization_id)
   );
 
 -- ==============================================
@@ -192,7 +192,7 @@ CREATE POLICY "admin_roles_read" ON admin_roles FOR SELECT
   USING (
     user_id = auth.uid() OR
     is_platform_admin(auth.uid()) OR
-    (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id))
+    (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id))
   );
 
 CREATE POLICY "admin_roles_platform_admin" ON admin_roles FOR ALL
@@ -204,14 +204,14 @@ ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "roles_read" ON roles FOR SELECT
   USING (
     is_platform_admin(auth.uid()) OR
-    (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+    (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
     (team_id IS NOT NULL AND is_team_admin(auth.uid(), team_id))
   );
 
 CREATE POLICY "roles_admin" ON roles FOR ALL
   USING (
     is_platform_admin(auth.uid()) OR
-    (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+    (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
     (team_id IS NOT NULL AND is_team_admin(auth.uid(), team_id))
   );
 
@@ -223,7 +223,7 @@ CREATE POLICY "role_assignments_read" ON role_assignments FOR SELECT
     user_id = auth.uid() OR
     is_platform_admin(auth.uid()) OR
     EXISTS (SELECT 1 FROM roles WHERE roles.id = role_id AND
-      (is_org_admin(auth.uid(), roles.parent_organization_id) OR
+      (is_org_admin(auth.uid(), roles.organization_id) OR
        is_team_admin(auth.uid(), roles.team_id)))
   );
 
@@ -231,7 +231,7 @@ CREATE POLICY "role_assignments_admin" ON role_assignments FOR ALL
   USING (
     is_platform_admin(auth.uid()) OR
     EXISTS (SELECT 1 FROM roles WHERE roles.id = role_id AND
-      (is_org_admin(auth.uid(), roles.parent_organization_id) OR
+      (is_org_admin(auth.uid(), roles.organization_id) OR
        is_team_admin(auth.uid(), roles.team_id)))
   );
 
@@ -297,14 +297,14 @@ ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "locations_read" ON locations FOR SELECT
   USING (
     is_platform_admin(auth.uid()) OR
-    (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+    (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
     (team_id IS NOT NULL AND is_team_admin(auth.uid(), team_id))
   );
 
 CREATE POLICY "locations_admin" ON locations FOR ALL
   USING (
     is_platform_admin(auth.uid()) OR
-    (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+    (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
     (team_id IS NOT NULL AND is_team_admin(auth.uid(), team_id))
   );
 
@@ -321,14 +321,14 @@ CREATE POLICY "event_types_read" ON event_types FOR SELECT
   USING (
     visibility_level = 'public' OR
     is_platform_admin(auth.uid()) OR
-    (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+    (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
     (team_id IS NOT NULL AND is_team_member(auth.uid(), team_id))
   );
 
 CREATE POLICY "event_types_admin" ON event_types FOR ALL
   USING (
     is_platform_admin(auth.uid()) OR
-    (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+    (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
     (team_id IS NOT NULL AND is_team_admin(auth.uid(), team_id))
   );
 
@@ -474,26 +474,26 @@ CREATE POLICY "duplicate_detections_admin" ON duplicate_detections FOR ALL USING
 ALTER TABLE payment_gateways ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "payment_gateways_read" ON payment_gateways FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id))
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id))
 );
 CREATE POLICY "payment_gateways_admin" ON payment_gateways FOR ALL USING (is_platform_admin(auth.uid()));
 
 ALTER TABLE gateway_access ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "gateway_access_read" ON gateway_access FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id))
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id))
 );
 
 ALTER TABLE fee_structures ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "fee_structures_read" ON fee_structures FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id))
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id))
 );
 
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "products_read" ON products FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND parent_organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid()))) OR
+  (organization_id IS NOT NULL AND organization_id IN (SELECT org_id FROM get_user_org_ids(auth.uid()))) OR
   (team_id IS NOT NULL AND team_id IN (SELECT team_id FROM get_user_team_ids(auth.uid())))
 );
 
@@ -523,7 +523,7 @@ CREATE POLICY "transactions_read" ON transactions FOR SELECT USING (
 ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "equipment_read" ON equipment FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
   (team_id IS NOT NULL AND is_team_member(auth.uid(), team_id))
 );
 
@@ -531,7 +531,7 @@ ALTER TABLE equipment_checkouts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "equipment_checkouts_read" ON equipment_checkouts FOR SELECT USING (
   user_id = auth.uid() OR is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM equipment WHERE equipment.id = equipment_id AND
-    (is_org_admin(auth.uid(), equipment.parent_organization_id) OR is_team_admin(auth.uid(), equipment.team_id)))
+    (is_org_admin(auth.uid(), equipment.organization_id) OR is_team_admin(auth.uid(), equipment.team_id)))
 );
 
 ALTER TABLE equipment_late_fees ENABLE ROW LEVEL SECURITY;
@@ -548,7 +548,7 @@ CREATE POLICY "document_types_admin" ON document_types FOR ALL USING (is_platfor
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "documents_read" ON documents FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
   (team_id IS NOT NULL AND is_team_member(auth.uid(), team_id))
 );
 
@@ -565,7 +565,7 @@ CREATE POLICY "document_approval_read" ON document_approval_queue FOR SELECT USI
 ALTER TABLE media_library ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "media_read" ON media_library FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
   (team_id IS NOT NULL AND is_team_member(auth.uid(), team_id))
 );
 
@@ -587,7 +587,7 @@ CREATE POLICY "test_webhook_payloads_admin" ON test_webhook_payloads FOR ALL USI
 ALTER TABLE webhook_triggers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "webhook_triggers_read" ON webhook_triggers FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id))
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id))
 );
 
 ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
@@ -599,7 +599,7 @@ CREATE POLICY "ghl_workflow_mappings_admin" ON ghl_workflow_mappings FOR ALL USI
 -- 11. GHL INTEGRATION
 ALTER TABLE ghl_oauth_connections ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "ghl_oauth_admin" ON ghl_oauth_connections FOR ALL USING (
-  is_platform_admin(auth.uid()) OR is_org_admin(auth.uid(), parent_organization_id)
+  is_platform_admin(auth.uid()) OR is_org_admin(auth.uid(), organization_id)
 );
 
 ALTER TABLE user_ghl_contacts ENABLE ROW LEVEL SECURITY;
@@ -630,14 +630,14 @@ CREATE POLICY "tournament_import_mappings_admin" ON tournament_import_mappings F
 ALTER TABLE website_templates ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "website_templates_read" ON website_templates FOR SELECT USING (
   visibility = 'public' OR is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id))
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id))
 );
 
 ALTER TABLE websites ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "websites_public_read" ON websites FOR SELECT USING (is_published = true OR is_platform_admin(auth.uid()));
 CREATE POLICY "websites_admin" ON websites FOR ALL USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
   (team_id IS NOT NULL AND is_team_admin(auth.uid(), team_id))
 );
 
@@ -645,14 +645,14 @@ ALTER TABLE website_pages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "website_pages_public_read" ON website_pages FOR SELECT USING (
   is_published = true OR is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM websites WHERE websites.id = website_id AND
-    (is_org_admin(auth.uid(), websites.parent_organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
+    (is_org_admin(auth.uid(), websites.organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
 );
 
 ALTER TABLE website_domains ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "website_domains_read" ON website_domains FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM websites WHERE websites.id = website_id AND
-    (is_org_admin(auth.uid(), websites.parent_organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
+    (is_org_admin(auth.uid(), websites.organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
 );
 
 ALTER TABLE website_forms ENABLE ROW LEVEL SECURITY;
@@ -664,7 +664,7 @@ ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "form_submissions_admin" ON form_submissions FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM website_forms wf JOIN websites w ON wf.website_id = w.id
-    WHERE wf.id = form_id AND (is_org_admin(auth.uid(), w.parent_organization_id) OR is_team_admin(auth.uid(), w.team_id)))
+    WHERE wf.id = form_id AND (is_org_admin(auth.uid(), w.organization_id) OR is_team_admin(auth.uid(), w.team_id)))
 );
 
 ALTER TABLE website_nav_items ENABLE ROW LEVEL SECURITY;
@@ -682,14 +682,14 @@ ALTER TABLE website_analytics_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "website_analytics_settings_admin" ON website_analytics_settings FOR ALL USING (
   is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM websites WHERE websites.id = website_id AND
-    (is_org_admin(auth.uid(), websites.parent_organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
+    (is_org_admin(auth.uid(), websites.organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
 );
 
 -- 14. LEADS & ANALYTICS
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "leads_admin" ON leads FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
-  (parent_organization_id IS NOT NULL AND is_org_admin(auth.uid(), parent_organization_id)) OR
+  (organization_id IS NOT NULL AND is_org_admin(auth.uid(), organization_id)) OR
   (team_id IS NOT NULL AND is_team_admin(auth.uid(), team_id))
 );
 
@@ -697,21 +697,21 @@ ALTER TABLE website_page_views ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "website_page_views_admin" ON website_page_views FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM websites WHERE websites.id = website_id AND
-    (is_org_admin(auth.uid(), websites.parent_organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
+    (is_org_admin(auth.uid(), websites.organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
 );
 
 ALTER TABLE website_events_tracking ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "website_events_tracking_admin" ON website_events_tracking FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM websites WHERE websites.id = website_id AND
-    (is_org_admin(auth.uid(), websites.parent_organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
+    (is_org_admin(auth.uid(), websites.organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
 );
 
 ALTER TABLE website_analytics_summary ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "website_analytics_summary_admin" ON website_analytics_summary FOR SELECT USING (
   is_platform_admin(auth.uid()) OR
   EXISTS (SELECT 1 FROM websites WHERE websites.id = website_id AND
-    (is_org_admin(auth.uid(), websites.parent_organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
+    (is_org_admin(auth.uid(), websites.organization_id) OR is_team_admin(auth.uid(), websites.team_id)))
 );
 
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;

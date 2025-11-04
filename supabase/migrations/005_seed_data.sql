@@ -24,129 +24,19 @@ ON CONFLICT (slug) DO NOTHING;
 -- 2. EVENT TYPES - System-Level Event Types
 -- ==============================================
 
-INSERT INTO event_types (name, slug, description, sport_id, visibility_level, color, icon, display_order) VALUES
-  -- Wrestling Event Types
-  (
-    'Practice',
-    'practice',
-    'Team practice session',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#3B82F6',
-    'dumbbell',
-    1
-  ),
-  (
-    'Competition',
-    'competition',
-    'Competitive wrestling meet or tournament',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#EF4444',
-    'trophy',
-    2
-  ),
-  (
-    'Dual Meet',
-    'dual-meet',
-    'Head-to-head team competition',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#F59E0B',
-    'users',
-    3
-  ),
-  (
-    'Tournament',
-    'tournament',
-    'Multi-team tournament event',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#8B5CF6',
-    'award',
-    4
-  ),
-  (
-    'Weigh-In',
-    'weigh-in',
-    'Official weigh-in session',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#10B981',
-    'scale',
-    5
-  ),
-  (
-    'Team Meeting',
-    'team-meeting',
-    'Team meeting or discussion',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#6B7280',
-    'users',
-    6
-  ),
-  (
-    'Conditioning',
-    'conditioning',
-    'Strength and conditioning session',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#14B8A6',
-    'activity',
-    7
-  ),
-  (
-    'Film Session',
-    'film-session',
-    'Video review and analysis',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#6366F1',
-    'video',
-    8
-  ),
-  (
-    'Fundraiser',
-    'fundraiser',
-    'Team fundraising event',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#EC4899',
-    'dollar-sign',
-    9
-  ),
-  (
-    'Social Event',
-    'social-event',
-    'Team social gathering or celebration',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#F97316',
-    'calendar',
-    10
-  ),
-  (
-    'Parent Meeting',
-    'parent-meeting',
-    'Meeting for parents and guardians',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#84CC16',
-    'users',
-    11
-  ),
-  (
-    'Volunteer Opportunity',
-    'volunteer',
-    'Volunteer opportunity for team members',
-    (SELECT id FROM sports WHERE slug = 'wrestling'),
-    'public',
-    '#06B6D4',
-    'heart',
-    12
-  )
-ON CONFLICT DO NOTHING;
+INSERT INTO event_types (name, description, color, icon, category, scope_type) VALUES
+  ('Practice', 'Team practice session', '#3B82F6', 'dumbbell', 'practice', 'system'),
+  ('Competition', 'Competitive wrestling meet or tournament', '#EF4444', 'trophy', 'competitive', 'system'),
+  ('Dual Meet', 'Head-to-head team competition', '#F59E0B', 'users', 'competitive', 'system'),
+  ('Tournament', 'Multi-team tournament event', '#8B5CF6', 'award', 'competitive', 'system'),
+  ('Weigh-In', 'Official weigh-in session', '#10B981', 'scale', 'other', 'system'),
+  ('Team Meeting', 'Team meeting or discussion', '#6B7280', 'users', 'meeting', 'system'),
+  ('Conditioning', 'Strength and conditioning session', '#14B8A6', 'activity', 'practice', 'system'),
+  ('Film Session', 'Video review and analysis', '#6366F1', 'video', 'meeting', 'system'),
+  ('Fundraiser', 'Team fundraising event', '#EC4899', 'dollar-sign', 'fundraiser', 'system'),
+  ('Social Event', 'Team social gathering or celebration', '#F97316', 'calendar', 'social', 'system'),
+  ('Parent Meeting', 'Meeting for parents and guardians', '#84CC16', 'users', 'meeting', 'system'),
+  ('Volunteer Opportunity', 'Volunteer opportunity for team members', '#06B6D4', 'heart', 'other', 'system');
 
 -- ==============================================
 -- 3. DOCUMENT TYPES - Standard Document Types

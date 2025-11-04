@@ -3,6 +3,29 @@
 -- Description: Creates all 81 tables for Team Track 360
 -- Migration: 001_initial_schema
 
+-- ==============================================
+-- 0. BOOTSTRAP - Create exec_sql helper function
+-- ==============================================
+-- This allows programmatic migration execution via REST API
+CREATE OR REPLACE FUNCTION public.exec_sql(query text)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result_count integer;
+BEGIN
+  EXECUTE query;
+  GET DIAGNOSTICS result_count = ROW_COUNT;
+  RETURN json_build_object('success', true, 'message', 'Query executed successfully', 'rows_affected', result_count);
+EXCEPTION WHEN OTHERS THEN
+  RETURN json_build_object('success', false, 'error', SQLERRM, 'detail', SQLSTATE);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.exec_sql(text) TO service_role;
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -1013,8 +1036,8 @@ CREATE TABLE IF NOT EXISTS equipment_checkouts (
   returned_condition text CHECK (returned_condition IN ('new', 'excellent', 'good', 'fair', 'poor', 'damaged')),
   notes text,
 
-  -- Late Fee
-  is_late boolean GENERATED ALWAYS AS (returned_at IS NOT NULL AND returned_at::date > due_date) STORED,
+  -- Late Fee (computed via trigger instead of generated column)
+  is_late boolean DEFAULT false,
   late_fee_amount numeric(10, 2),
 
   created_at timestamptz NOT NULL DEFAULT now(),
