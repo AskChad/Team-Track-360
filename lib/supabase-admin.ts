@@ -92,8 +92,8 @@ export async function execSQLFile(filename: string) {
   // Split by semicolons and execute each statement
   const statements = sql
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith('--'));
+    .map((s: string) => s.trim())
+    .filter((s: string) => s.length > 0 && !s.startsWith('--'));
 
   for (const statement of statements) {
     try {
