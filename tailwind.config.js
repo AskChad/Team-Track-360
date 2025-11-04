@@ -18,6 +18,13 @@ module.exports = {
     },
     extend: {
       colors: {
+        // Mustang Wrestling Club inspired colors
+        'wrestling-navy': '#062D97',
+        'wrestling-blue': '#2778E9',
+        'wrestling-bright': '#2667FF',
+        'wrestling-teal': '#1DCEC8',
+        'wrestling-gold': '#9E841E',
+        'wrestling-dark': '#0E0C32',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

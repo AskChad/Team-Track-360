@@ -53,12 +53,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wrestling-dark via-wrestling-navy to-wrestling-blue px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-2xl p-8">
         {/* Logo/Title */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Team Track 360</h1>
-          <p className="text-gray-600 mt-2">Sports Team Management Platform</p>
+          <h1 className="text-4xl font-bold text-wrestling-navy">Team Track 360</h1>
+          <p className="text-gray-600 mt-2 font-semibold">Sports Team Management Platform</p>
         </div>
 
         {/* Tab Switcher */}
@@ -68,10 +68,10 @@ export default function LoginPage() {
               setIsLogin(true);
               setError('');
             }}
-            className={`flex-1 py-3 text-center font-medium transition-colors ${
+            className={`flex-1 py-3 text-center font-bold transition-colors ${
               isLogin
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-wrestling-blue border-b-2 border-wrestling-blue'
+                : 'text-gray-500 hover:text-wrestling-navy'
             }`}
           >
             Login
@@ -81,10 +81,10 @@ export default function LoginPage() {
               setIsLogin(false);
               setError('');
             }}
-            className={`flex-1 py-3 text-center font-medium transition-colors ${
+            className={`flex-1 py-3 text-center font-bold transition-colors ${
               !isLogin
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-wrestling-blue border-b-2 border-wrestling-blue'
+                : 'text-gray-500 hover:text-wrestling-navy'
             }`}
           >
             Sign Up
@@ -111,7 +111,7 @@ export default function LoginPage() {
                 required={!isLogin}
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
                 placeholder="John Doe"
               />
             </div>
@@ -155,7 +155,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="w-full bg-wrestling-blue text-white py-3 rounded-lg font-bold hover:bg-wrestling-bright transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {loading ? 'Please wait...' : isLogin ? 'Login' : 'Create Account'}
           </button>
@@ -164,7 +164,7 @@ export default function LoginPage() {
         {/* Additional Links */}
         {isLogin && (
           <div className="mt-4 text-center">
-            <a href="#" className="text-sm text-blue-600 hover:text-blue-700">
+            <a href="#" className="text-sm text-wrestling-blue hover:text-wrestling-navy font-semibold">
               Forgot password?
             </a>
           </div>
