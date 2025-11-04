@@ -6,7 +6,7 @@
  * Based on: Attack Kit Section 6 - Security Standards
  */
 
-import jwt, { Secret } from 'jsonwebtoken';
+import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
 const JWT_SECRET: Secret = process.env.JWT_SECRET!;
