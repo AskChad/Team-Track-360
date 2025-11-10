@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Navigation from '@/components/Navigation';
 
 interface Competition {
   id: string;
@@ -205,6 +206,8 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navigation />
+
       {/* Header */}
       <div className="bg-gradient-to-r from-wrestling-dark via-wrestling-navy to-wrestling-blue text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
