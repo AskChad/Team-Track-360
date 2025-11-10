@@ -85,7 +85,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('organizations');
 
   // Entity states
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -352,7 +352,6 @@ export default function AdminPage() {
           <div className="border-b border-gray-200">
             <div className="flex space-x-1 px-6 overflow-x-auto">
               {[
-                { id: 'overview', name: 'Overview' },
                 { id: 'organizations', name: 'Organizations' },
                 { id: 'teams', name: 'Teams' },
                 { id: 'athletes', name: 'Athletes' },
@@ -377,47 +376,6 @@ export default function AdminPage() {
           </div>
 
           <div className="p-6">
-            {/* Overview Tab */}
-            {activeTab === 'overview' && stats && (
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-6">System Overview</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Total Users</p>
-                    <p className="text-4xl font-bold">{stats.total_users}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Organizations</p>
-                    <p className="text-4xl font-bold">{stats.total_organizations}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Teams</p>
-                    <p className="text-4xl font-bold">{stats.total_teams}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Athletes</p>
-                    <p className="text-4xl font-bold">{stats.total_athletes}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Events</p>
-                    <p className="text-4xl font-bold">{stats.total_events}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Competitions</p>
-                    <p className="text-4xl font-bold">{stats.total_competitions}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Locations</p>
-                    <p className="text-4xl font-bold">{stats.total_locations}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-6 text-white">
-                    <p className="text-sm font-bold opacity-90 mb-1">Rosters</p>
-                    <p className="text-4xl font-bold">{stats.total_rosters}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Organizations Tab */}
             {activeTab === 'organizations' && (
               <div>
