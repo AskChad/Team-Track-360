@@ -40,7 +40,6 @@ export async function GET(req: NextRequest) {
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .in('role_type', ['platform_admin', 'super_admin'])
       .single();
 
@@ -73,12 +72,11 @@ export async function GET(req: NextRequest) {
       // Regular users see only their organizations
       const { data: adminRoles } = await supabaseAdmin
         .from('admin_roles')
-        .select('parent_organization_id')
+        .select('organization_id')
         .eq('user_id', userId)
-        .eq('is_active', true)
-        .not('parent_organization_id', 'is', null);
+        .not('organization_id', 'is', null);
 
-      const orgIds = adminRoles?.map((r) => r.parent_organization_id) || [];
+      const orgIds = adminRoles?.map((r) => r.organization_id) || [];
 
       if (orgIds.length === 0) {
         return NextResponse.json({
@@ -165,7 +163,6 @@ export async function POST(req: NextRequest) {
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .in('role_type', ['platform_admin', 'super_admin'])
       .single();
 
@@ -232,7 +229,7 @@ export async function POST(req: NextRequest) {
     // Add sports if provided
     if (body.sport_ids && Array.isArray(body.sport_ids) && body.sport_ids.length > 0) {
       const orgSports = body.sport_ids.map((sportId: string) => ({
-        parent_organization_id: org.id,
+        organization_id: org.id,
         sport_id: sportId,
       }));
 
