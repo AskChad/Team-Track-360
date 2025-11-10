@@ -36,9 +36,6 @@ export default function Navigation() {
     { name: 'Athletes', href: '/athletes' },
     { name: 'Rosters', href: '/rosters' },
     { name: 'Events', href: '/events' },
-    { name: 'Competitions', href: '/competitions' },
-    { name: 'Locations', href: '/locations' },
-    { name: 'Organizations', href: '/organizations', adminOnly: true },
     { name: 'Admin', href: '/admin', adminOnly: true, platformAdminOnly: true },
   ];
 

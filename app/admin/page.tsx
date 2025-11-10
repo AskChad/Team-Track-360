@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Navigation from '@/components/Navigation';
 
 interface Stats {
   total_users: number;
@@ -324,6 +325,8 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navigation />
+
       {/* Header */}
       <div className="bg-gradient-to-r from-wrestling-dark via-wrestling-navy to-wrestling-blue text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -332,12 +335,6 @@ export default function AdminPage() {
               <h1 className="text-3xl font-bold">System Administration</h1>
               <p className="text-gray-200 mt-1">Platform management and configuration</p>
             </div>
-            <Link
-              href="/"
-              className="bg-white text-wrestling-navy px-4 py-2 rounded-lg font-bold hover:bg-gray-100"
-            >
-              Back to Dashboard
-            </Link>
           </div>
         </div>
       </div>
