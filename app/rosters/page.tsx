@@ -97,7 +97,7 @@ export default function RostersPage() {
       });
       const data = await response.json();
       if (data.success) {
-        setEvents(data.data || []);
+        setEvents(data.data.events || []);
       }
     } catch (err) {
       console.error('Failed to load events');

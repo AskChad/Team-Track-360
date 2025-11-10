@@ -37,17 +37,42 @@ export async function GET(
     }
 
     const teamId = params.id;
+    const userId = payload.userId;
 
-    // Check if user has access to this team
+    // Get the team to check organization
+    const { data: team } = await supabaseAdmin
+      .from('teams')
+      .select('organization_id')
+      .eq('id', teamId)
+      .single();
+
+    if (!team) {
+      return NextResponse.json(
+        { success: false, error: 'Team not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has access to this team (member OR admin)
     const { data: membership } = await supabaseAdmin
       .from('team_members')
       .select('id')
-      .eq('user_id', payload.userId)
+      .eq('user_id', userId)
       .eq('team_id', teamId)
       .eq('status', 'active')
       .single();
 
-    if (!membership) {
+    // Check if user is admin
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, team_id, organization_id')
+      .eq('user_id', userId);
+
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === team.organization_id);
+    const isTeamAdmin = adminRoles?.some(r => r.role_type === 'team_admin' && r.team_id === teamId);
+
+    if (!membership && !isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
         { status: 403 }
@@ -131,16 +156,38 @@ export async function POST(
     const teamId = params.id;
     const body = await req.json();
 
-    // Check if user is team admin
-    const { data: adminRole } = await supabaseAdmin
-      .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', userId)
-      .or(`team_id.eq.${teamId},role_type.in.(platform_admin,super_admin)`)
-      .in('role_type', ['team_admin', 'org_admin', 'platform_admin', 'super_admin'])
+    // Get the team to check organization
+    const { data: team } = await supabaseAdmin
+      .from('teams')
+      .select('organization_id')
+      .eq('id', teamId)
       .single();
 
-    if (!adminRole) {
+    if (!team) {
+      return NextResponse.json(
+        { success: false, error: 'Team not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has permission to add members
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, team_id, organization_id')
+      .eq('user_id', userId);
+
+    if (!adminRoles || adminRoles.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be team admin or higher.' },
+        { status: 403 }
+      );
+    }
+
+    const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === team.organization_id);
+    const isTeamAdmin = adminRoles.some(r => r.role_type === 'team_admin' && r.team_id === teamId);
+
+    if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions. Must be team admin or higher.' },
         { status: 403 }
