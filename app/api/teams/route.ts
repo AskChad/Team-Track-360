@@ -14,6 +14,7 @@ import { verifyToken } from '@/lib/auth';
 /**
  * GET /api/teams
  * List all teams the user has access to
+ * Optional query param: organization_id - filter by organization
  */
 export async function GET(req: NextRequest) {
   try {
@@ -37,63 +38,110 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = payload.userId;
+    const { searchParams } = new URL(req.url);
+    const organizationId = searchParams.get('organization_id');
 
-    // Get teams where user is a team admin
-    const { data: teamAdminRoles, error: rolesError } = await supabaseAdmin
+    // Get user's admin roles
+    const { data: adminRoles, error: rolesError } = await supabaseAdmin
       .from('admin_roles')
-      .select(`
-        team_id,
-        role_type,
-        teams:team_id (
-          id,
-          name,
-          slug,
-          organization_id,
-          sport_id,
-          logo_url,
-          primary_color,
-          secondary_color,
-          is_active,
-          created_at,
-          sports:sport_id (
-            id,
-            name,
-            slug,
-            icon_url
-          ),
-          parent_organizations:organization_id (
-            id,
-            name,
-            slug,
-            logo_url
-          )
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('role_type', 'team_admin')
-      .not('team_id', 'is', null);
+      .select('role_type, organization_id, team_id')
+      .eq('user_id', userId);
 
     if (rolesError) {
-      console.error('Error fetching team admin roles:', rolesError);
+      console.error('Error fetching admin roles:', rolesError);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch teams' },
         { status: 500 }
       );
     }
 
-    // Format the response - filter out any roles where team is null
-    const teams = teamAdminRoles
-      ?.filter((role: any) => role.teams !== null)
-      .map((role: any) => ({
-        ...role.teams,
-        user_role: role.role_type,
-      })) || [];
+    // Check user's role level
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const orgAdminOrgIds = adminRoles?.filter(r => r.role_type === 'org_admin').map(r => r.organization_id) || [];
+    const teamAdminTeamIds = adminRoles?.filter(r => r.role_type === 'team_admin').map(r => r.team_id) || [];
+
+    let query = supabaseAdmin
+      .from('teams')
+      .select(`
+        id,
+        name,
+        slug,
+        organization_id,
+        sport_id,
+        logo_url,
+        primary_color,
+        secondary_color,
+        is_active,
+        created_at,
+        sports:sport_id (
+          id,
+          name,
+          slug,
+          icon_url
+        ),
+        parent_organizations:organization_id (
+          id,
+          name,
+          slug,
+          logo_url
+        )
+      `)
+      .eq('is_active', true)
+      .order('name');
+
+    if (isPlatformAdmin) {
+      // Platform admin sees all teams
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      }
+    } else if (orgAdminOrgIds.length > 0) {
+      // Org admin sees teams in their organizations
+      if (organizationId) {
+        // Filter to specific org if they have access
+        if (orgAdminOrgIds.includes(organizationId)) {
+          query = query.eq('organization_id', organizationId);
+        } else {
+          // They don't have access to this org
+          return NextResponse.json({
+            success: true,
+            data: { teams: [], count: 0 },
+          });
+        }
+      } else {
+        // Show all teams in their organizations
+        query = query.in('organization_id', orgAdminOrgIds);
+      }
+    } else if (teamAdminTeamIds.length > 0) {
+      // Team admin sees only their specific teams
+      if (organizationId) {
+        // Filter to teams in the specified org that they have access to
+        query = query.eq('organization_id', organizationId).in('id', teamAdminTeamIds);
+      } else {
+        query = query.in('id', teamAdminTeamIds);
+      }
+    } else {
+      // No admin roles - no access to teams
+      return NextResponse.json({
+        success: true,
+        data: { teams: [], count: 0 },
+      });
+    }
+
+    const { data: teams, error: teamsError } = await query;
+
+    if (teamsError) {
+      console.error('Error fetching teams:', teamsError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch teams' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        teams,
-        count: teams.length,
+        teams: teams || [],
+        count: teams?.length || 0,
       },
     });
   } catch (error: any) {

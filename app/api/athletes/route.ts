@@ -20,7 +20,27 @@ export async function GET(req: NextRequest) {
     const weightClass = searchParams.get('weight_class');
     const isActive = searchParams.get('is_active');
 
-    let query = supabase
+    // Get user's admin roles
+    const { data: adminRoles, error: rolesError } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, organization_id, team_id')
+      .eq('user_id', user.userId);
+
+    if (rolesError) {
+      console.error('Error fetching admin roles:', rolesError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch athletes' },
+        { status: 500 }
+      );
+    }
+
+    // Check user's role level
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const orgAdminOrgIds = adminRoles?.filter(r => r.role_type === 'org_admin').map(r => r.organization_id) || [];
+    const teamAdminTeamIds = adminRoles?.filter(r => r.role_type === 'team_admin').map(r => r.team_id) || [];
+
+    // Build base query
+    let query = supabaseAdmin
       .from('wrestling_athlete_profiles')
       .select(`
         *,
@@ -40,15 +60,66 @@ export async function GET(req: NextRequest) {
         ),
         teams (
           id,
-          name
+          name,
+          organization_id
         )
       `)
       .order('profiles(last_name)');
 
-    if (teamId) {
-      query = query.eq('team_id', teamId);
+    // Apply role-based filtering
+    if (isPlatformAdmin) {
+      // Platform admin sees all athletes
+      if (teamId) {
+        query = query.eq('team_id', teamId);
+      }
+    } else if (orgAdminOrgIds.length > 0 || teamAdminTeamIds.length > 0) {
+      // Get all teams user has access to
+      let accessibleTeamIds: string[] = [];
+
+      if (orgAdminOrgIds.length > 0) {
+        // Get teams in their organizations
+        const { data: orgTeams } = await supabaseAdmin
+          .from('teams')
+          .select('id')
+          .in('organization_id', orgAdminOrgIds);
+        accessibleTeamIds = orgTeams?.map(t => t.id) || [];
+      }
+
+      if (teamAdminTeamIds.length > 0) {
+        // Add their specific teams
+        accessibleTeamIds = [...new Set([...accessibleTeamIds, ...teamAdminTeamIds])];
+      }
+
+      if (accessibleTeamIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: [],
+        });
+      }
+
+      // Filter by accessible teams
+      if (teamId) {
+        // Check if they have access to the requested team
+        if (accessibleTeamIds.includes(teamId)) {
+          query = query.eq('team_id', teamId);
+        } else {
+          return NextResponse.json({
+            success: true,
+            data: [],
+          });
+        }
+      } else {
+        query = query.in('team_id', accessibleTeamIds);
+      }
+    } else {
+      // No admin roles - no access
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
     }
 
+    // Apply additional filters
     if (weightClass) {
       query = query.eq('current_weight_class', weightClass);
     }

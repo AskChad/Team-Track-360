@@ -11,7 +11,8 @@ import { verifyToken } from '@/lib/auth';
 
 /**
  * GET /api/events?team_id=xxx
- * List events for a specific team
+ * List events (optionally filtered by team_id)
+ * Access based on role: Platform Admin (all), Org Admin (their orgs), Team Admin (their teams)
  */
 export async function GET(req: NextRequest) {
   try {
@@ -37,30 +38,27 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const teamId = searchParams.get('team_id');
 
-    if (!teamId) {
-      return NextResponse.json(
-        { success: false, error: 'team_id is required' },
-        { status: 400 }
-      );
-    }
-
-    // Check if user is team admin or platform admin
-    const { data: adminRole } = await supabaseAdmin
+    // Get user's admin roles
+    const { data: adminRoles, error: rolesError } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', userId)
-      .or(`team_id.eq.${teamId},role_type.in.(platform_admin,super_admin)`)
-      .single();
+      .select('role_type, organization_id, team_id')
+      .eq('user_id', userId);
 
-    if (!adminRole) {
+    if (rolesError) {
+      console.error('Error fetching admin roles:', rolesError);
       return NextResponse.json(
-        { success: false, error: 'Access denied. Must be team admin or platform admin.' },
-        { status: 403 }
+        { success: false, error: 'Failed to fetch events' },
+        { status: 500 }
       );
     }
 
-    // Get events for the team
-    const { data: events, error: eventsError } = await supabaseAdmin
+    // Check user's role level
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const orgAdminOrgIds = adminRoles?.filter(r => r.role_type === 'org_admin').map(r => r.organization_id) || [];
+    const teamAdminTeamIds = adminRoles?.filter(r => r.role_type === 'team_admin').map(r => r.team_id) || [];
+
+    // Build base query
+    let query = supabaseAdmin
       .from('events')
       .select(`
         *,
@@ -77,6 +75,11 @@ export async function GET(req: NextRequest) {
           city,
           state
         ),
+        teams:team_id (
+          id,
+          name,
+          organization_id
+        ),
         event_rsvps (
           id,
           user_id,
@@ -88,8 +91,62 @@ export async function GET(req: NextRequest) {
           )
         )
       `)
-      .eq('team_id', teamId)
       .order('start_time', { ascending: true });
+
+    // Apply role-based filtering
+    if (isPlatformAdmin) {
+      // Platform admin sees all events
+      if (teamId) {
+        query = query.eq('team_id', teamId);
+      }
+    } else if (orgAdminOrgIds.length > 0 || teamAdminTeamIds.length > 0) {
+      // Get all teams user has access to
+      let accessibleTeamIds: string[] = [];
+
+      if (orgAdminOrgIds.length > 0) {
+        // Get teams in their organizations
+        const { data: orgTeams } = await supabaseAdmin
+          .from('teams')
+          .select('id')
+          .in('organization_id', orgAdminOrgIds);
+        accessibleTeamIds = orgTeams?.map(t => t.id) || [];
+      }
+
+      if (teamAdminTeamIds.length > 0) {
+        // Add their specific teams
+        accessibleTeamIds = [...new Set([...accessibleTeamIds, ...teamAdminTeamIds])];
+      }
+
+      if (accessibleTeamIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: { events: [], count: 0 },
+        });
+      }
+
+      // Filter by accessible teams
+      if (teamId) {
+        // Check if they have access to the requested team
+        if (accessibleTeamIds.includes(teamId)) {
+          query = query.eq('team_id', teamId);
+        } else {
+          return NextResponse.json({
+            success: true,
+            data: { events: [], count: 0 },
+          });
+        }
+      } else {
+        query = query.in('team_id', accessibleTeamIds);
+      }
+    } else {
+      // No admin roles - no access
+      return NextResponse.json({
+        success: true,
+        data: { events: [], count: 0 },
+      });
+    }
+
+    const { data: events, error: eventsError } = await query;
 
     if (eventsError) {
       console.error('Error fetching events:', eventsError);

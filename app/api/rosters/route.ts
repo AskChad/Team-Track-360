@@ -18,25 +18,116 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const eventId = searchParams.get('event_id');
 
-    let query = supabase
+    // Get user's admin roles
+    const { data: adminRoles, error: rolesError } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, organization_id, team_id')
+      .eq('user_id', user.userId);
+
+    if (rolesError) {
+      console.error('Error fetching admin roles:', rolesError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch rosters' },
+        { status: 500 }
+      );
+    }
+
+    // Check user's role level
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const orgAdminOrgIds = adminRoles?.filter(r => r.role_type === 'org_admin').map(r => r.organization_id) || [];
+    const teamAdminTeamIds = adminRoles?.filter(r => r.role_type === 'team_admin').map(r => r.team_id) || [];
+
+    // Get accessible event IDs based on role
+    let accessibleEventIds: string[] = [];
+
+    if (isPlatformAdmin) {
+      // Platform admin sees all rosters
+      if (eventId) {
+        accessibleEventIds = [eventId];
+      } else {
+        // Get all event IDs
+        const { data: allEvents } = await supabaseAdmin
+          .from('events')
+          .select('id');
+        accessibleEventIds = allEvents?.map(e => e.id) || [];
+      }
+    } else if (orgAdminOrgIds.length > 0 || teamAdminTeamIds.length > 0) {
+      // Get all teams user has access to
+      let accessibleTeamIds: string[] = [];
+
+      if (orgAdminOrgIds.length > 0) {
+        // Get teams in their organizations
+        const { data: orgTeams } = await supabaseAdmin
+          .from('teams')
+          .select('id')
+          .in('organization_id', orgAdminOrgIds);
+        accessibleTeamIds = orgTeams?.map(t => t.id) || [];
+      }
+
+      if (teamAdminTeamIds.length > 0) {
+        // Add their specific teams
+        accessibleTeamIds = [...new Set([...accessibleTeamIds, ...teamAdminTeamIds])];
+      }
+
+      if (accessibleTeamIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: [],
+        });
+      }
+
+      // Get events for accessible teams
+      const { data: teamEvents } = await supabaseAdmin
+        .from('events')
+        .select('id')
+        .in('team_id', accessibleTeamIds);
+      accessibleEventIds = teamEvents?.map(e => e.id) || [];
+
+      // If filtering by specific event, verify access
+      if (eventId) {
+        if (!accessibleEventIds.includes(eventId)) {
+          return NextResponse.json({
+            success: true,
+            data: [],
+          });
+        }
+        accessibleEventIds = [eventId];
+      }
+    } else {
+      // No admin roles - no access
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    if (accessibleEventIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // Query rosters for accessible events
+    const { data: rosters, error } = await supabaseAdmin
       .from('event_rosters')
       .select(`
         *,
         events (
           id,
-          name,
-          event_type,
-          start_date,
-          end_date
+          title,
+          start_time,
+          end_time,
+          team_id,
+          teams:team_id (
+            id,
+            name,
+            organization_id
+          )
         )
       `)
+      .in('event_id', accessibleEventIds)
       .order('created_at', { ascending: false });
-
-    if (eventId) {
-      query = query.eq('event_id', eventId);
-    }
-
-    const { data: rosters, error } = await query;
 
     if (error) {
       console.error('Database error:', error);
