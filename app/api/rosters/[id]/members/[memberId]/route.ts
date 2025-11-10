@@ -69,7 +69,7 @@ export async function PUT(
             athlete_profile_id: currentMember.athlete_profile_id,
             change_type: 'weight_class_changed',
             notes: `Changed from ${currentMember.weight_class} to ${body.weight_class}`,
-            changed_by: user.id,
+            changed_by: user.userId,
           });
       }
 
@@ -82,7 +82,7 @@ export async function PUT(
             change_type: 'status_changed',
             reason: body.reason,
             notes: `Changed from ${currentMember.status} to ${body.status}`,
-            changed_by: user.id,
+            changed_by: user.userId,
           });
       }
     }
@@ -137,7 +137,7 @@ export async function DELETE(
           roster_id: params.id,
           athlete_profile_id: member.athlete_profile_id,
           change_type: 'removed',
-          changed_by: user.id,
+          changed_by: user.userId,
         });
     }
 
