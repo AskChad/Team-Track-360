@@ -146,20 +146,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if user is org admin
-    const { data: adminRole } = await supabaseAdmin
+    // Check if user is platform admin OR org admin for this organization
+    const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('organization_id', organization_id)
-      .eq('role_type', 'org_admin')
-      .single();
+      .or(`role_type.in.(platform_admin,super_admin),and(role_type.eq.org_admin,organization_id.eq.${organization_id})`);
 
-    if (!adminRole) {
+    const hasPermission = adminRoles && adminRoles.length > 0;
+
+    if (!hasPermission) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Insufficient permissions. Must be organization admin.',
+          error: 'Insufficient permissions. Must be platform admin or organization admin.',
         },
         { status: 403 }
       );

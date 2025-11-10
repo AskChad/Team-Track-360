@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -77,6 +78,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Event ID is required' },
         { status: 400 }
+      );
+    }
+
+    // Get event to check team
+    const { data: event } = await supabaseAdmin
+      .from('events')
+      .select('team_id')
+      .eq('id', event_id)
+      .single();
+
+    if (!event) {
+      return NextResponse.json(
+        { success: false, error: 'Event not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has permission (platform_admin OR team_admin for this team)
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, team_id')
+      .eq('user_id', user.userId);
+
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isTeamAdmin = adminRoles?.some(r => r.role_type === 'team_admin' && r.team_id === event.team_id);
+
+    if (!isPlatformAdmin && !isTeamAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be platform admin or team admin for this team.' },
+        { status: 403 }
       );
     }
 

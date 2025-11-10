@@ -17,11 +17,6 @@ interface Location {
   website_url?: string;
 }
 
-interface Organization {
-  id: string;
-  name: string;
-}
-
 interface User {
   id: string;
   email: string;
@@ -33,7 +28,6 @@ export default function LocationsPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -49,8 +43,8 @@ export default function LocationsPage() {
     website_url: '',
   });
 
-  // Check if user can create locations (Platform Admin or has organizations)
-  const canCreateLocation = user?.platform_role === 'platform_admin' || organizations.length > 0;
+  // Only platform admins can create locations (global resources)
+  const canCreateLocation = user?.platform_role === 'platform_admin';
 
   useEffect(() => {
     // Load user from localStorage
@@ -60,7 +54,6 @@ export default function LocationsPage() {
     }
 
     fetchLocations();
-    fetchOrganizations();
   }, []);
 
   const fetchLocations = async () => {
@@ -85,24 +78,6 @@ export default function LocationsPage() {
     } catch (err) {
       setError('Failed to load locations');
       setLoading(false);
-    }
-  };
-
-  const fetchOrganizations = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) return;
-
-      const response = await fetch('/api/organizations', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setOrganizations(data.data.organizations || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch organizations:', err);
     }
   };
 

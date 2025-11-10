@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -68,6 +69,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Location name is required' },
         { status: 400 }
+      );
+    }
+
+    // Check if user is platform admin (locations are global resources)
+    const { data: platformAdmin } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type')
+      .eq('user_id', user.userId)
+      .in('role_type', ['platform_admin', 'super_admin'])
+      .single();
+
+    if (!platformAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Platform admin required to create locations.' },
+        { status: 403 }
       );
     }
 

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -92,6 +93,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Organization, sport, and name are required' },
         { status: 400 }
+      );
+    }
+
+    // Check if user has permission (platform_admin OR org_admin for this organization)
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, organization_id')
+      .eq('user_id', user.userId);
+
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === organization_id);
+
+    if (!isPlatformAdmin && !isOrgAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be platform admin or organization admin.' },
+        { status: 403 }
       );
     }
 
