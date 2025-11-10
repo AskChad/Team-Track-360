@@ -33,7 +33,11 @@ export default function Navigation() {
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
     { name: 'Teams', href: '/teams', icon: '👥' },
+    { name: 'Athletes', href: '/athletes', icon: '🏃' },
+    { name: 'Rosters', href: '/rosters', icon: '📋' },
     { name: 'Events', href: '/events', icon: '📅' },
+    { name: 'Competitions', href: '/competitions', icon: '🏆' },
+    { name: 'Locations', href: '/locations', icon: '📍' },
     { name: 'Organizations', href: '/organizations', icon: '🏢', adminOnly: true },
   ];
 
