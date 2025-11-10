@@ -9,6 +9,7 @@ interface Competition {
   name: string;
   description?: string;
   competition_type?: string;
+  default_location_id?: string;
   is_recurring: boolean;
   parent_organizations?: {
     id: string;
