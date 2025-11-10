@@ -44,27 +44,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check if user has access to this team
-    const { data: membership } = await supabaseAdmin
-      .from('team_members')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('team_id', teamId)
-      .eq('status', 'active')
-      .single();
-
-    // Check if user is admin
+    // Check if user is team admin or platform admin
     const { data: adminRole } = await supabaseAdmin
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .or(`team_id.eq.${teamId},role_type.in.(platform_admin,super_admin)`)
       .single();
 
-    if (!membership && !adminRole) {
+    if (!adminRole) {
       return NextResponse.json(
-        { success: false, error: 'Access denied' },
+        { success: false, error: 'Access denied. Must be team admin or platform admin.' },
         { status: 403 }
       );
     }
@@ -170,7 +160,6 @@ export async function POST(req: NextRequest) {
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .or(`team_id.eq.${team_id},role_type.in.(platform_admin,super_admin)`)
       .in('role_type', ['team_admin', 'org_admin', 'platform_admin', 'super_admin'])
       .single();

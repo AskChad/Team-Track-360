@@ -140,18 +140,17 @@ export async function POST(
       );
     }
 
-    // Check if user is member of team
-    const { data: membership } = await supabaseAdmin
-      .from('team_members')
-      .select('id')
+    // Check if user has access to this team (team admin or higher)
+    const { data: adminRole } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type')
       .eq('user_id', userId)
-      .eq('team_id', event.team_id)
-      .eq('status', 'active')
+      .or(`team_id.eq.${event.team_id},role_type.in.(platform_admin,super_admin)`)
       .single();
 
-    if (!membership) {
+    if (!adminRole) {
       return NextResponse.json(
-        { success: false, error: 'You must be a team member to RSVP' },
+        { success: false, error: 'You must be a team admin to RSVP' },
         { status: 403 }
       );
     }
