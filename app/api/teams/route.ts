@@ -38,20 +38,18 @@ export async function GET(req: NextRequest) {
 
     const userId = payload.userId;
 
-    // Get teams where user is a member
-    const { data: teamMemberships, error: membershipsError } = await supabaseAdmin
-      .from('team_members')
+    // Get teams where user is a team admin
+    const { data: teamAdminRoles, error: rolesError } = await supabaseAdmin
+      .from('admin_roles')
       .select(`
         team_id,
-        role,
-        status,
+        role_type,
         teams:team_id (
           id,
           name,
           slug,
-          description,
+          organization_id,
           sport_id,
-          parent_organization_id,
           logo_url,
           primary_color,
           secondary_color,
@@ -63,7 +61,7 @@ export async function GET(req: NextRequest) {
             slug,
             icon_url
           ),
-          parent_organizations:parent_organization_id (
+          parent_organizations:organization_id (
             id,
             name,
             slug,
@@ -72,10 +70,11 @@ export async function GET(req: NextRequest) {
         )
       `)
       .eq('user_id', userId)
-      .eq('status', 'active');
+      .eq('role_type', 'team_admin')
+      .not('team_id', 'is', null);
 
-    if (membershipsError) {
-      console.error('Error fetching team memberships:', membershipsError);
+    if (rolesError) {
+      console.error('Error fetching team admin roles:', rolesError);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch teams' },
         { status: 500 }
@@ -83,10 +82,9 @@ export async function GET(req: NextRequest) {
     }
 
     // Format the response
-    const teams = teamMemberships?.map((membership: any) => ({
-      ...membership.teams,
-      user_role: membership.role,
-      user_status: membership.status,
+    const teams = teamAdminRoles?.map((role: any) => ({
+      ...role.teams,
+      user_role: role.role_type,
     })) || [];
 
     return NextResponse.json({
@@ -134,33 +132,32 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Validate required fields
-    const { name, slug, parent_organization_id, sport_id, description } = body;
+    const { name, slug, organization_id, sport_id, description, team_type } = body;
 
-    if (!name || !slug || !parent_organization_id || !sport_id) {
+    if (!name || !slug || !organization_id || !sport_id) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: name, slug, parent_organization_id, sport_id',
+          error: 'Missing required fields: name, slug, organization_id, sport_id',
         },
         { status: 400 }
       );
     }
 
-    // Check if user is org admin or platform admin
+    // Check if user is org admin
     const { data: adminRole } = await supabaseAdmin
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('parent_organization_id', parent_organization_id)
-      .eq('is_active', true)
-      .in('role_type', ['org_admin', 'platform_admin', 'super_admin'])
+      .eq('organization_id', organization_id)
+      .eq('role_type', 'org_admin')
       .single();
 
     if (!adminRole) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Insufficient permissions. Must be organization admin or higher.',
+          error: 'Insufficient permissions. Must be organization admin.',
         },
         { status: 403 }
       );
@@ -171,7 +168,7 @@ export async function POST(req: NextRequest) {
       .from('teams')
       .select('id')
       .eq('slug', slug)
-      .eq('parent_organization_id', parent_organization_id)
+      .eq('organization_id', organization_id)
       .single();
 
     if (existingTeam) {
@@ -187,8 +184,8 @@ export async function POST(req: NextRequest) {
       .insert({
         name: name.trim(),
         slug: slug.toLowerCase().trim(),
-        description: description?.trim(),
-        parent_organization_id,
+        team_type: team_type || 'team',
+        organization_id,
         sport_id,
         primary_color: body.primary_color || '#3B82F6',
         secondary_color: body.secondary_color || '#1E40AF',
@@ -212,9 +209,7 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         role_type: 'team_admin',
         team_id: team.id,
-        parent_organization_id,
-        is_active: true,
-        assigned_by_user_id: userId,
+        organization_id,
       });
 
     if (memberError) {
