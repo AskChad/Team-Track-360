@@ -127,7 +127,7 @@ export async function POST(
         roster_id: params.id,
         athlete_profile_id,
         change_type: 'added',
-        changed_by: user.id,
+        changed_by: user.userId,
       });
 
     return NextResponse.json({
