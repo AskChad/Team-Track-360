@@ -87,15 +87,17 @@ export async function GET(
       (m: any) => m.user_id === userId && m.status === 'active'
     );
 
-    // Check if user is org admin or platform admin
-    const { data: adminRole } = await supabaseAdmin
+    // Check if user is admin
+    const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', userId)
-      .or(`organization_id.eq.${team.organization_id},role_type.in.(platform_admin,super_admin)`)
-      .single();
+      .select('role_type, team_id, organization_id')
+      .eq('user_id', userId);
 
-    if (!isMember && !adminRole) {
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === team.organization_id);
+    const isTeamAdmin = adminRoles?.some(r => r.role_type === 'team_admin' && r.team_id === teamId);
+
+    if (!isMember && !isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
         { status: 403 }
@@ -160,22 +162,27 @@ export async function PUT(
       );
     }
 
-    // Check if user is team admin or higher
-    const { data: adminRole } = await supabaseAdmin
+    // Check if user has permission to update this team
+    const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', userId)
-      .or(
-        `team_id.eq.${teamId},` +
-        `organization_id.eq.${currentTeam.organization_id},` +
-        `role_type.in.(platform_admin,super_admin)`
-      )
-      .in('role_type', ['team_admin', 'org_admin', 'platform_admin', 'super_admin'])
-      .single();
+      .select('role_type, team_id, organization_id')
+      .eq('user_id', userId);
 
-    if (!adminRole) {
+    if (!adminRoles || adminRoles.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // Check permissions: platform admin, org admin for this org, or team admin for this team
+    const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentTeam.organization_id);
+    const isTeamAdmin = adminRoles.some(r => r.role_type === 'team_admin' && r.team_id === teamId);
+
+    if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be platform admin, organization admin, or team admin.' },
         { status: 403 }
       );
     }
@@ -296,21 +303,26 @@ export async function DELETE(
       );
     }
 
-    // Check if user is org admin or platform admin
-    const { data: adminRole } = await supabaseAdmin
+    // Check if user has permission to delete this team
+    const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', userId)
-      .or(
-        `organization_id.eq.${currentTeam.organization_id},` +
-        `role_type.in.(platform_admin,super_admin)`
-      )
-      .in('role_type', ['org_admin', 'platform_admin', 'super_admin'])
-      .single();
+      .select('role_type, organization_id')
+      .eq('user_id', userId);
 
-    if (!adminRole) {
+    if (!adminRoles || adminRoles.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Insufficient permissions. Must be organization admin or higher.' },
+        { success: false, error: 'Insufficient permissions. Must be organization admin or platform admin.' },
+        { status: 403 }
+      );
+    }
+
+    // Only org admin or platform admin can delete teams
+    const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentTeam.organization_id);
+
+    if (!isPlatformAdmin && !isOrgAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be organization admin or platform admin.' },
         { status: 403 }
       );
     }
