@@ -59,7 +59,7 @@ export async function GET(
       .eq('user_id', user.userId);
 
     const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === roster.events?.teams?.organization_id);
+    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === (roster.events as any)?.teams?.organization_id);
     const isTeamAdmin = adminRoles?.some(r => r.role_type === 'team_admin' && r.team_id === roster.events?.team_id);
 
     if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
@@ -155,7 +155,7 @@ export async function PUT(
     }
 
     const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentRoster.events?.teams?.organization_id);
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === (currentRoster.events as any)?.teams?.organization_id);
     const isTeamAdmin = adminRoles.some(r => r.role_type === 'team_admin' && r.team_id === currentRoster.events?.team_id);
 
     if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
@@ -249,7 +249,7 @@ export async function DELETE(
     }
 
     const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentRoster.events?.teams?.organization_id);
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === (currentRoster.events as any)?.teams?.organization_id);
 
     if (!isPlatformAdmin && !isOrgAdmin) {
       return NextResponse.json(

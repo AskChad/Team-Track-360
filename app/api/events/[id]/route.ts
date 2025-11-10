@@ -97,7 +97,7 @@ export async function GET(
       .eq('user_id', userId);
 
     const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === event.teams?.organization_id);
+    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === (event.teams as any)?.organization_id);
     const isTeamAdmin = adminRoles?.some(r => r.role_type === 'team_admin' && r.team_id === event.team_id);
 
     if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
@@ -179,7 +179,7 @@ export async function PUT(
     }
 
     const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentEvent.teams?.organization_id);
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === (currentEvent.teams as any)?.organization_id);
     const isTeamAdmin = adminRoles.some(r => r.role_type === 'team_admin' && r.team_id === currentEvent.team_id);
 
     if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
@@ -318,7 +318,7 @@ export async function DELETE(
 
     // Only org admin or platform admin can delete events
     const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentEvent.teams?.organization_id);
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === (currentEvent.teams as any)?.organization_id);
 
     if (!isPlatformAdmin && !isOrgAdmin) {
       return NextResponse.json(
