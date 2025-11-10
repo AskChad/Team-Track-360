@@ -7,17 +7,33 @@ import Navigation from '@/components/Navigation';
 interface Team {
   id: string;
   name: string;
+  slug?: string;
   description?: string;
+  team_type?: string;
   logo_url?: string;
   primary_color?: string;
   secondary_color?: string;
+  organization_id?: string;
+  sport_id?: string;
   sports?: {
+    id: string;
     name: string;
     icon_url?: string;
   };
   parent_organizations?: {
+    id: string;
     name: string;
   };
+}
+
+interface Organization {
+  id: string;
+  name: string;
+}
+
+interface Sport {
+  id: string;
+  name: string;
 }
 
 interface Member {
@@ -43,8 +59,12 @@ export default function TeamDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [team, setTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [sports, setSports] = useState<Sport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<Partial<Team>>({});
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -55,6 +75,8 @@ export default function TeamDetailPage() {
 
     fetchTeamDetails(token);
     fetchTeamMembers(token);
+    fetchOrganizations(token);
+    fetchSports(token);
   }, [teamId]);
 
   const fetchTeamDetails = async (token: string) => {
@@ -72,6 +94,7 @@ export default function TeamDetailPage() {
       }
 
       setTeam(data.data.team);
+      setFormData(data.data.team);
       setLoading(false);
     } catch (err) {
       setError('Network error');
@@ -92,6 +115,82 @@ export default function TeamDetailPage() {
       }
     } catch (err) {
       console.error('Failed to fetch members:', err);
+    }
+  };
+
+  const fetchOrganizations = async (token: string) => {
+    try {
+      const response = await fetch('/api/organizations', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOrganizations(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load organizations');
+    }
+  };
+
+  const fetchSports = async (token: string) => {
+    try {
+      const response = await fetch('/api/sports', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSports(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load sports');
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/teams/${teamId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setTeam(data.data.team);
+        setFormData(data.data.team);
+        setIsEditing(false);
+        setError('');
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError('Failed to update team');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this team? This action cannot be undone.')) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/teams/${teamId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        router.push('/teams');
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError('Failed to delete team');
     }
   };
 
@@ -177,9 +276,34 @@ export default function TeamDetailPage() {
                 </div>
               </div>
 
-              <button className="btn-primary">
-                + Add Member
-              </button>
+              <div className="flex gap-2">
+                {!isEditing ? (
+                  <>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                    <button className="btn-primary">
+                      + Add Member
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => { setIsEditing(false); setError(''); }}
+                    className="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -206,7 +330,159 @@ export default function TeamDetailPage() {
 
         {/* Tab Content */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          {activeTab === 'overview' && (
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+              {error}
+            </div>
+          )}
+
+          {isEditing ? (
+            <form onSubmit={handleUpdate}>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Edit Team</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
+                  <input
+                    type="text"
+                    value={formData.slug || ''}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase() })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="team-name-slug"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Organization *</label>
+                    <select
+                      required
+                      value={formData.organization_id || ''}
+                      onChange={(e) => setFormData({ ...formData, organization_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select organization</option>
+                      {organizations.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sport *</label>
+                    <select
+                      required
+                      value={formData.sport_id || ''}
+                      onChange={(e) => setFormData({ ...formData, sport_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select sport</option>
+                      {sports.map((sport) => (
+                        <option key={sport.id} value={sport.id}>
+                          {sport.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Team Type</label>
+                    <select
+                      value={formData.team_type || ''}
+                      onChange={(e) => setFormData({ ...formData, team_type: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select type</option>
+                      <option value="varsity">Varsity</option>
+                      <option value="jv">JV</option>
+                      <option value="freshman">Freshman</option>
+                      <option value="club">Club</option>
+                      <option value="recreational">Recreational</option>
+                      <option value="competitive">Competitive</option>
+                      <option value="youth">Youth</option>
+                      <option value="adult">Adult</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <input
+                      type="url"
+                      value={formData.logo_url || ''}
+                      onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+                    <input
+                      type="color"
+                      value={formData.primary_color || '#3B82F6'}
+                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                      className="w-full h-10 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Color</label>
+                    <input
+                      type="color"
+                      value={formData.secondary_color || '#8B5CF6'}
+                      onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                      className="w-full h-10 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditing(false); setError(''); }}
+                    className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <>
+              {activeTab === 'overview' && (
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Team Overview</h2>
 
@@ -342,11 +618,13 @@ export default function TeamDetailPage() {
             </div>
           )}
 
-          {activeTab === 'settings' && (
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Team Settings</h2>
-              <p className="text-gray-600">Team settings will be available here.</p>
-            </div>
+              {activeTab === 'settings' && (
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Team Settings</h2>
+                  <p className="text-gray-600">Team settings will be available here.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
