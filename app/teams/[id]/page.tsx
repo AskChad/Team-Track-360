@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Navigation from '@/components/Navigation';
 
 interface Team {
   id: string;
@@ -197,9 +196,7 @@ export default function TeamDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-      <Navigation />
 
-        <Navigation />
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -213,9 +210,7 @@ export default function TeamDetailPage() {
   if (error || !team) {
     return (
       <div className="min-h-screen bg-gray-50">
-      <Navigation />
 
-        <Navigation />
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             {error || 'Team not found'}
@@ -234,10 +229,6 @@ export default function TeamDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
-
-      <Navigation />
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Team Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
