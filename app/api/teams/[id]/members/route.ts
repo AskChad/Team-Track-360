@@ -136,7 +136,6 @@ export async function POST(
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .or(`team_id.eq.${teamId},role_type.in.(platform_admin,super_admin)`)
       .in('role_type', ['team_admin', 'org_admin', 'platform_admin', 'super_admin'])
       .single();
