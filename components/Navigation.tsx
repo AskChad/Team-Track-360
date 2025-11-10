@@ -39,6 +39,7 @@ export default function Navigation() {
     { name: 'Competitions', href: '/competitions' },
     { name: 'Locations', href: '/locations' },
     { name: 'Organizations', href: '/organizations', adminOnly: true },
+    { name: 'Admin', href: '/admin', adminOnly: true, platformAdminOnly: true },
   ];
 
   const isActive = (href: string) => {
@@ -67,8 +68,13 @@ export default function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {navItems.map((item) => {
-              if (item.adminOnly && user?.platform_role !== 'platform_admin' && user?.platform_role !== 'super_admin') {
+            {navItems.map((item: any) => {
+              // Hide platform admin only items from non-platform admins
+              if (item.platformAdminOnly && user?.platform_role !== 'platform_admin' && user?.platform_role !== 'super_admin') {
+                return null;
+              }
+              // Hide admin only items from regular users
+              if (item.adminOnly && !item.platformAdminOnly && user?.platform_role !== 'platform_admin' && user?.platform_role !== 'super_admin') {
                 return null;
               }
               return (
@@ -134,8 +140,13 @@ export default function Navigation() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <div className="space-y-1">
-              {navItems.map((item) => {
-                if (item.adminOnly && user?.platform_role !== 'platform_admin' && user?.platform_role !== 'super_admin') {
+              {navItems.map((item: any) => {
+                // Hide platform admin only items from non-platform admins
+                if (item.platformAdminOnly && user?.platform_role !== 'platform_admin' && user?.platform_role !== 'super_admin') {
+                  return null;
+                }
+                // Hide admin only items from regular users
+                if (item.adminOnly && !item.platformAdminOnly && user?.platform_role !== 'platform_admin' && user?.platform_role !== 'super_admin') {
                   return null;
                 }
                 return (
