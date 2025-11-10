@@ -44,7 +44,7 @@ export default function LocationsPage() {
   });
 
   // Only platform admins can create locations (global resources)
-  const canCreateLocation = user?.platform_role === 'platform_admin';
+  const canCreateLocation = user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin';
 
   useEffect(() => {
     // Load user from localStorage

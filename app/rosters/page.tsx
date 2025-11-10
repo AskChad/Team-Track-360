@@ -51,7 +51,7 @@ export default function RostersPage() {
   });
 
   // Check if user can create rosters (Platform Admin or has events)
-  const canCreateRoster = user?.platform_role === 'platform_admin' || events.length > 0;
+  const canCreateRoster = (user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin') || events.length > 0;
 
   useEffect(() => {
     // Load user from localStorage

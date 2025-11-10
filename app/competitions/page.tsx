@@ -73,7 +73,7 @@ export default function CompetitionsPage() {
   });
 
   // Check if user can create competitions (Platform Admin or has organizations)
-  const canCreateCompetition = user?.platform_role === 'platform_admin' || organizations.length > 0;
+  const canCreateCompetition = (user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin') || organizations.length > 0;
 
   useEffect(() => {
     // Load user from localStorage

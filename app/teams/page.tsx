@@ -53,7 +53,7 @@ export default function TeamsPage() {
   const [creating, setCreating] = useState(false);
 
   // Check if user can create teams (Platform Admin or has access to orgs)
-  const canCreateTeam = user?.platform_role === 'platform_admin' || organizations.length > 0;
+  const canCreateTeam = (user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin') || organizations.length > 0;
 
   useEffect(() => {
     // Load user from localStorage

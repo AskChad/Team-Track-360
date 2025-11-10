@@ -45,7 +45,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
 
   // Check if user can create events (Platform Admin or has teams)
-  const canCreateEvent = user?.platform_role === 'platform_admin' || teams.length > 0;
+  const canCreateEvent = (user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin') || teams.length > 0;
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');

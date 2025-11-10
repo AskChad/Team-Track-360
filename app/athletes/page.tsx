@@ -64,7 +64,7 @@ export default function AthletesPage() {
   });
 
   // Check if user can create athletes (Platform Admin or has teams)
-  const canCreateAthlete = user?.platform_role === 'platform_admin' || teams.length > 0;
+  const canCreateAthlete = (user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin') || teams.length > 0;
 
   useEffect(() => {
     // Load user from localStorage

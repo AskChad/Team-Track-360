@@ -62,7 +62,7 @@ export default function OrganizationsPage() {
   const [creating, setCreating] = useState(false);
 
   // Only platform admins can create organizations
-  const canCreateOrganization = user?.platform_role === 'platform_admin';
+  const canCreateOrganization = user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin';
 
   useEffect(() => {
     // Load user from localStorage
