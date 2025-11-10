@@ -28,8 +28,16 @@ interface Team {
   name: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  platform_role: string;
+}
+
 export default function AthletesPage() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +63,16 @@ export default function AthletesPage() {
     medical_clearance_expires_at: '',
   });
 
+  // Check if user can create athletes (Platform Admin or has teams)
+  const canCreateAthlete = user?.platform_role === 'platform_admin' || teams.length > 0;
+
   useEffect(() => {
+    // Load user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+
     fetchAthletes();
     fetchTeams();
   }, []);
@@ -180,12 +197,14 @@ export default function AthletesPage() {
               <p className="text-gray-200 mt-2">Manage wrestler profiles and information</p>
             </div>
             <div className="flex gap-4">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90"
-              >
-                + Add Athlete
-              </button>
+              {canCreateAthlete && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90"
+                >
+                  + Add Athlete
+                </button>
+              )}
               <Link
                 href="/dashboard"
                 className="bg-white text-wrestling-navy px-4 py-2 rounded-lg font-bold hover:bg-gray-100"
@@ -210,12 +229,14 @@ export default function AthletesPage() {
             <div className="text-6xl mb-4">🤼</div>
             <h3 className="text-xl font-bold text-gray-700 mb-2">No Athletes Yet</h3>
             <p className="text-gray-600 mb-6">Add your first wrestler profile</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright"
-            >
-              Add Athlete
-            </button>
+            {canCreateAthlete && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright"
+              >
+                Add Athlete
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

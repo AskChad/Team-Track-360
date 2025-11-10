@@ -31,8 +31,16 @@ interface Sport {
   name: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  platform_role: string;
+}
+
 export default function OrganizationsPage() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,7 +61,16 @@ export default function OrganizationsPage() {
   });
   const [creating, setCreating] = useState(false);
 
+  // Only platform admins can create organizations
+  const canCreateOrganization = user?.platform_role === 'platform_admin';
+
   useEffect(() => {
+    // Load user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+
     fetchOrganizations();
     fetchSports();
   }, []);
@@ -190,12 +207,14 @@ export default function OrganizationsPage() {
               <p className="text-gray-200 mt-2">View and manage wrestling organizations</p>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600 transition-colors"
-              >
-                + Create Organization
-              </button>
+              {canCreateOrganization && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600 transition-colors"
+                >
+                  + Create Organization
+                </button>
+              )}
               <Link
                 href="/dashboard"
                 className="bg-white text-wrestling-navy px-4 py-2 rounded-lg font-bold hover:bg-gray-100"

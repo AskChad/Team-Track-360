@@ -17,9 +17,23 @@ interface Location {
   website_url?: string;
 }
 
+interface Organization {
+  id: string;
+  name: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  platform_role: string;
+}
+
 export default function LocationsPage() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -35,8 +49,18 @@ export default function LocationsPage() {
     website_url: '',
   });
 
+  // Check if user can create locations (Platform Admin or has organizations)
+  const canCreateLocation = user?.platform_role === 'platform_admin' || organizations.length > 0;
+
   useEffect(() => {
+    // Load user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+
     fetchLocations();
+    fetchOrganizations();
   }, []);
 
   const fetchLocations = async () => {
@@ -61,6 +85,24 @@ export default function LocationsPage() {
     } catch (err) {
       setError('Failed to load locations');
       setLoading(false);
+    }
+  };
+
+  const fetchOrganizations = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch('/api/organizations', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setOrganizations(data.data.organizations || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch organizations:', err);
     }
   };
 
@@ -122,12 +164,14 @@ export default function LocationsPage() {
               <p className="text-gray-200 mt-2">Manage competition venues and facilities</p>
             </div>
             <div className="flex gap-4">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90"
-              >
-                + Add Location
-              </button>
+              {canCreateLocation && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90"
+                >
+                  + Add Location
+                </button>
+              )}
               <Link
                 href="/dashboard"
                 className="bg-white text-wrestling-navy px-4 py-2 rounded-lg font-bold hover:bg-gray-100"
@@ -152,12 +196,14 @@ export default function LocationsPage() {
             <div className="text-6xl mb-4">📍</div>
             <h3 className="text-xl font-bold text-gray-700 mb-2">No Locations Yet</h3>
             <p className="text-gray-600 mb-6">Add your first competition venue</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright"
-            >
-              Add Location
-            </button>
+            {canCreateLocation && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright"
+              >
+                Add Location
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -26,8 +26,16 @@ interface Sport {
   name: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  platform_role: string;
+}
+
 export default function TeamsPage() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,7 +52,16 @@ export default function TeamsPage() {
   });
   const [creating, setCreating] = useState(false);
 
+  // Check if user can create teams (Platform Admin or has access to orgs)
+  const canCreateTeam = user?.platform_role === 'platform_admin' || organizations.length > 0;
+
   useEffect(() => {
+    // Load user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+
     fetchTeams();
     fetchOrganizations();
     fetchSports();
@@ -195,12 +212,14 @@ export default function TeamsPage() {
               <p className="text-gray-200 mt-2">Manage your sports teams</p>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600 transition-colors"
-              >
-                + Create Team
-              </button>
+              {canCreateTeam && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600 transition-colors"
+                >
+                  + Create Team
+                </button>
+              )}
               <Link
                 href="/dashboard"
                 className="bg-white text-wrestling-navy px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors"

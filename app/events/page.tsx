@@ -28,19 +28,36 @@ interface Team {
   name: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  platform_role: string;
+}
+
 export default function EventsPage() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [events, setEvents] = useState<Event[]>([]);
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [loading, setLoading] = useState(true);
 
+  // Check if user can create events (Platform Admin or has teams)
+  const canCreateEvent = user?.platform_role === 'platform_admin' || teams.length > 0;
+
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
       router.push('/login');
       return;
+    }
+
+    // Load user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
     }
 
     fetchTeams(token);
@@ -133,9 +150,11 @@ export default function EventsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Events</h1>
             <p className="text-gray-600 mt-1">Manage team practices, competitions, and meetings</p>
           </div>
-          <button className="btn-primary">
-            + Create Event
-          </button>
+          {canCreateEvent && (
+            <button className="btn-primary">
+              + Create Event
+            </button>
+          )}
         </div>
 
         {/* Filters */}
@@ -190,9 +209,11 @@ export default function EventsPage() {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Events Scheduled</h3>
             <p className="text-gray-600 mb-4">Create your first event to get started</p>
-            <button className="btn-primary">
-              + Create Event
-            </button>
+            {canCreateEvent && (
+              <button className="btn-primary">
+                + Create Event
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

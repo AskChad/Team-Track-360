@@ -27,8 +27,16 @@ interface Event {
   start_date?: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  platform_role: string;
+}
+
 export default function RostersPage() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +50,16 @@ export default function RostersPage() {
     max_per_weight_class: '',
   });
 
+  // Check if user can create rosters (Platform Admin or has events)
+  const canCreateRoster = user?.platform_role === 'platform_admin' || events.length > 0;
+
   useEffect(() => {
+    // Load user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+
     fetchRosters();
     fetchEvents();
   }, []);
@@ -147,12 +164,14 @@ export default function RostersPage() {
               <p className="text-gray-200 mt-2">Manage athlete rosters for competitions and events</p>
             </div>
             <div className="flex gap-4">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90"
-              >
-                + Add Roster
-              </button>
+              {canCreateRoster && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90"
+                >
+                  + Add Roster
+                </button>
+              )}
               <Link
                 href="/dashboard"
                 className="bg-white text-wrestling-navy px-4 py-2 rounded-lg font-bold hover:bg-gray-100"
@@ -177,12 +196,14 @@ export default function RostersPage() {
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-xl font-bold text-gray-700 mb-2">No Rosters Yet</h3>
             <p className="text-gray-600 mb-6">Create your first event roster</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright"
-            >
-              Add Roster
-            </button>
+            {canCreateRoster && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright"
+              >
+                Add Roster
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
