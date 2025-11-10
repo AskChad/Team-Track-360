@@ -31,14 +31,14 @@ export default function Navigation() {
   };
 
   const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
-    { name: 'Teams', href: '/teams', icon: '👥' },
-    { name: 'Athletes', href: '/athletes', icon: '🏃' },
-    { name: 'Rosters', href: '/rosters', icon: '📋' },
-    { name: 'Events', href: '/events', icon: '📅' },
-    { name: 'Competitions', href: '/competitions', icon: '🏆' },
-    { name: 'Locations', href: '/locations', icon: '📍' },
-    { name: 'Organizations', href: '/organizations', icon: '🏢', adminOnly: true },
+    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'Teams', href: '/teams' },
+    { name: 'Athletes', href: '/athletes' },
+    { name: 'Rosters', href: '/rosters' },
+    { name: 'Events', href: '/events' },
+    { name: 'Competitions', href: '/competitions' },
+    { name: 'Locations', href: '/locations' },
+    { name: 'Organizations', href: '/organizations', adminOnly: true },
   ];
 
   const isActive = (href: string) => {
@@ -81,7 +81,6 @@ export default function Navigation() {
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <span className="mr-2">{item.icon}</span>
                   {item.name}
                 </button>
               );
@@ -152,7 +151,6 @@ export default function Navigation() {
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
-                    <span className="mr-2">{item.icon}</span>
                     {item.name}
                   </button>
                 );
@@ -164,7 +162,7 @@ export default function Navigation() {
                 }}
                 className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
               >
-                👤 Profile
+                Profile
               </button>
               <button
                 onClick={() => {
@@ -173,7 +171,7 @@ export default function Navigation() {
                 }}
                 className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
               >
-                🚪 Logout
+                Logout
               </button>
             </div>
           </div>
