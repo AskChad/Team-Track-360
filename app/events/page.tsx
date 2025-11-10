@@ -28,6 +28,20 @@ interface Team {
   name: string;
 }
 
+interface EventType {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+}
+
+interface Location {
+  id: string;
+  name: string;
+  city?: string;
+  state?: string;
+}
+
 interface User {
   id: string;
   email: string;
@@ -41,8 +55,24 @@ export default function EventsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [events, setEvents] = useState<Event[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    team_id: '',
+    title: '',
+    description: '',
+    event_type_id: '',
+    location_id: '',
+    start_time: '',
+    end_time: '',
+    all_day: false,
+    is_mandatory: false,
+    max_attendees: '',
+  });
 
   // Check if user can create events (Platform Admin or has teams)
   const canCreateEvent = (user?.platform_role === 'platform_admin' || user?.platform_role === 'super_admin') || teams.length > 0;
@@ -61,6 +91,8 @@ export default function EventsPage() {
     }
 
     fetchTeams(token);
+    fetchEventTypes(token);
+    fetchLocations(token);
   }, []);
 
   useEffect(() => {
@@ -83,6 +115,7 @@ export default function EventsPage() {
       if (data.success && data.data.teams.length > 0) {
         setTeams(data.data.teams);
         setSelectedTeam(data.data.teams[0].id);
+        setFormData(prev => ({ ...prev, team_id: data.data.teams[0].id }));
       }
       setLoading(false);
     } catch (err) {
@@ -104,6 +137,80 @@ export default function EventsPage() {
       }
     } catch (err) {
       console.error('Failed to fetch events:', err);
+    }
+  };
+
+  const fetchEventTypes = async (token: string) => {
+    try {
+      const response = await fetch('/api/event-types', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setEventTypes(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch event types:', err);
+    }
+  };
+
+  const fetchLocations = async (token: string) => {
+    try {
+      const response = await fetch('/api/locations', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setLocations(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch locations:', err);
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setShowCreateModal(false);
+        setFormData({
+          team_id: selectedTeam,
+          title: '',
+          description: '',
+          event_type_id: '',
+          location_id: '',
+          start_time: '',
+          end_time: '',
+          all_day: false,
+          is_mandatory: false,
+          max_attendees: '',
+        });
+        if (selectedTeam) {
+          fetchEvents(token!, selectedTeam);
+        }
+      } else {
+        setError(data.error || 'Failed to create event');
+      }
+    } catch (err) {
+      setError('Failed to create event');
     }
   };
 
@@ -151,53 +258,64 @@ export default function EventsPage() {
             <p className="text-gray-600 mt-1">Manage team practices, competitions, and meetings</p>
           </div>
           {canCreateEvent && (
-            <button className="btn-primary">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
               + Create Event
             </button>
           )}
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <select
-                value={selectedTeam}
-                onChange={(e) => setSelectedTeam(e.target.value)}
-                className="input-field max-w-xs"
-              >
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
 
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setView('list')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  view === 'list'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                📋 List
-              </button>
-              <button
-                onClick={() => setView('calendar')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  view === 'calendar'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                📅 Calendar
-              </button>
+        {/* Filters */}
+        {teams.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <select
+                  value={selectedTeam}
+                  onChange={(e) => setSelectedTeam(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setView('list')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    view === 'list'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  List
+                </button>
+                <button
+                  onClick={() => setView('calendar')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    view === 'calendar'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  Calendar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Events List */}
         {events.length === 0 ? (
@@ -210,7 +328,10 @@ export default function EventsPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Events Scheduled</h3>
             <p className="text-gray-600 mb-4">Create your first event to get started</p>
             {canCreateEvent && (
-              <button className="btn-primary">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
                 + Create Event
               </button>
             )}
@@ -276,22 +397,188 @@ export default function EventsPage() {
                       )}
                     </div>
                   </div>
-
-                  <button
-                    className="btn-secondary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Handle RSVP
-                    }}
-                  >
-                    RSVP
-                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </main>
+
+      {/* Create Event Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Create New Event</h2>
+
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Team *
+                  </label>
+                  <select
+                    required
+                    value={formData.team_id}
+                    onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select team</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Event Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., Team Practice, Match vs. Lincoln"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Optional description..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Event Type *
+                    </label>
+                    <select
+                      required
+                      value={formData.event_type_id}
+                      onChange={(e) => setFormData({ ...formData, event_type_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select type</option>
+                      {eventTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.icon} {type.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Location
+                    </label>
+                    <select
+                      value={formData.location_id}
+                      onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name} {location.city && `- ${location.city}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Start Date & Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={formData.start_time}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      End Date & Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.end_time}
+                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.all_day}
+                      onChange={(e) => setFormData({ ...formData, all_day: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-bold text-gray-700">All Day Event</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_mandatory}
+                      onChange={(e) => setFormData({ ...formData, is_mandatory: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-bold text-gray-700">Mandatory Event</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Max Attendees
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.max_attendees}
+                    onChange={(e) => setFormData({ ...formData, max_attendees: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Leave empty for unlimited"
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700"
+                  >
+                    Create Event
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
