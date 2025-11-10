@@ -81,11 +81,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Format the response
-    const teams = teamAdminRoles?.map((role: any) => ({
-      ...role.teams,
-      user_role: role.role_type,
-    })) || [];
+    // Format the response - filter out any roles where team is null
+    const teams = teamAdminRoles
+      ?.filter((role: any) => role.teams !== null)
+      .map((role: any) => ({
+        ...role.teams,
+        user_role: role.role_type,
+      })) || [];
 
     return NextResponse.json({
       success: true,
