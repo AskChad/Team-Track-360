@@ -89,7 +89,7 @@ export default function OrganizationDetailPage({ params }: { params: { id: strin
 
       const data = await response.json();
       if (data.success) {
-        setTeams(data.data || []);
+        setTeams(data.data.teams || []);
       }
     } catch (err) {
       console.error('Failed to load teams');
