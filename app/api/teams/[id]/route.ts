@@ -50,7 +50,7 @@ export async function GET(
           slug,
           icon_url
         ),
-        parent_organizations:parent_organization_id (
+        parent_organizations:organization_id (
           id,
           name,
           slug,
@@ -92,8 +92,7 @@ export async function GET(
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
-      .or(`parent_organization_id.eq.${team.parent_organization_id},role_type.in.(platform_admin,super_admin)`)
+      .or(`organization_id.eq.${team.organization_id},role_type.in.(platform_admin,super_admin)`)
       .single();
 
     if (!isMember && !adminRole) {
@@ -166,10 +165,9 @@ export async function PUT(
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .or(
         `team_id.eq.${teamId},` +
-        `parent_organization_id.eq.${currentTeam.parent_organization_id},` +
+        `organization_id.eq.${currentTeam.organization_id},` +
         `role_type.in.(platform_admin,super_admin)`
       )
       .in('role_type', ['team_admin', 'org_admin', 'platform_admin', 'super_admin'])
@@ -287,7 +285,7 @@ export async function DELETE(
     // Get current team
     const { data: currentTeam } = await supabaseAdmin
       .from('teams')
-      .select('parent_organization_id')
+      .select('organization_id')
       .eq('id', teamId)
       .single();
 
@@ -303,9 +301,8 @@ export async function DELETE(
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .or(
-        `parent_organization_id.eq.${currentTeam.parent_organization_id},` +
+        `organization_id.eq.${currentTeam.organization_id},` +
         `role_type.in.(platform_admin,super_admin)`
       )
       .in('role_type', ['org_admin', 'platform_admin', 'super_admin'])
