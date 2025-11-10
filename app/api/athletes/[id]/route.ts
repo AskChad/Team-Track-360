@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(
@@ -80,10 +81,10 @@ export async function PUT(
 
     const body = await req.json();
 
-    // Get the athlete's user_id
-    const { data: currentAthlete, error: fetchError } = await supabase
+    // Get the athlete's user_id and team info
+    const { data: currentAthlete, error: fetchError } = await supabaseAdmin
       .from('wrestling_athlete_profiles')
-      .select('user_id')
+      .select('user_id, team_id, teams:team_id(organization_id)')
       .eq('id', params.id)
       .single();
 
@@ -91,6 +92,30 @@ export async function PUT(
       return NextResponse.json(
         { success: false, error: 'Athlete not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if user has permission to update this athlete
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, team_id, organization_id')
+      .eq('user_id', user.userId);
+
+    if (!adminRoles || adminRoles.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentAthlete.teams?.organization_id);
+    const isTeamAdmin = adminRoles.some(r => r.role_type === 'team_admin' && r.team_id === currentAthlete.team_id);
+
+    if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be platform admin, organization admin, or team admin.' },
+        { status: 403 }
       );
     }
 
@@ -209,8 +234,45 @@ export async function DELETE(
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
+    // Get the athlete's team info for authorization
+    const { data: currentAthlete } = await supabaseAdmin
+      .from('wrestling_athlete_profiles')
+      .select('team_id, teams:team_id(organization_id)')
+      .eq('id', params.id)
+      .single();
+
+    if (!currentAthlete) {
+      return NextResponse.json(
+        { success: false, error: 'Athlete not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has permission to delete this athlete (org admin or platform admin only)
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, organization_id')
+      .eq('user_id', user.userId);
+
+    if (!adminRoles || adminRoles.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be organization admin or platform admin.' },
+        { status: 403 }
+      );
+    }
+
+    const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentAthlete.teams?.organization_id);
+
+    if (!isPlatformAdmin && !isOrgAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be organization admin or platform admin.' },
+        { status: 403 }
+      );
+    }
+
     // Delete the athlete profile (cascade will handle user_types)
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('wrestling_athlete_profiles')
       .delete()
       .eq('id', params.id);

@@ -1,13 +1,14 @@
 /**
  * Location Detail API Routes
  *
- * GET /api/locations/[id] - Get location details
- * PUT /api/locations/[id] - Update location
- * DELETE /api/locations/[id] - Delete location
+ * GET /api/locations/[id] - Get location details (all authenticated users)
+ * PUT /api/locations/[id] - Update location (platform admin only)
+ * DELETE /api/locations/[id] - Delete location (platform admin only)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(
@@ -31,6 +32,7 @@ export async function GET(
       );
     }
 
+    // All authenticated users can view locations (needed for creating events/competitions)
     return NextResponse.json({
       success: true,
       data: location,
@@ -52,10 +54,25 @@ export async function PUT(
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
+    // Only platform admins can update locations
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type')
+      .eq('user_id', user.userId);
+
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+
+    if (!isPlatformAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Only platform admins can update locations.' },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
 
     // Update location
-    const { data: location, error } = await supabase
+    const { data: location, error } = await supabaseAdmin
       .from('locations')
       .update({
         ...body,
@@ -94,7 +111,22 @@ export async function DELETE(
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
-    const { error } = await supabase
+    // Only platform admins can delete locations
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type')
+      .eq('user_id', user.userId);
+
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+
+    if (!isPlatformAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Only platform admins can delete locations.' },
+        { status: 403 }
+      );
+    }
+
+    const { error } = await supabaseAdmin
       .from('locations')
       .delete()
       .eq('id', params.id);

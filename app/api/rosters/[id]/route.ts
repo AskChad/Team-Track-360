@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(
@@ -18,8 +19,8 @@ export async function GET(
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
-    // Get roster details
-    const { data: roster, error: rosterError } = await supabase
+    // Get roster details with event and team info for authorization
+    const { data: roster, error: rosterError } = await supabaseAdmin
       .from('event_rosters')
       .select(`
         *,
@@ -29,6 +30,10 @@ export async function GET(
           event_type,
           start_date,
           end_date,
+          team_id,
+          teams:team_id (
+            organization_id
+          ),
           locations (
             id,
             name,
@@ -44,6 +49,23 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: 'Roster not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if user has access to this roster
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, organization_id, team_id')
+      .eq('user_id', user.userId);
+
+    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === roster.events?.teams?.organization_id);
+    const isTeamAdmin = adminRoles?.some(r => r.role_type === 'team_admin' && r.team_id === roster.events?.team_id);
+
+    if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Access denied' },
+        { status: 403 }
       );
     }
 
@@ -97,7 +119,53 @@ export async function PUT(
 
     const body = await req.json();
 
-    const { data: roster, error } = await supabase
+    // Get the roster's event and team info for authorization
+    const { data: currentRoster, error: fetchError } = await supabaseAdmin
+      .from('event_rosters')
+      .select(`
+        event_id,
+        events:event_id (
+          team_id,
+          teams:team_id (
+            organization_id
+          )
+        )
+      `)
+      .eq('id', params.id)
+      .single();
+
+    if (fetchError || !currentRoster) {
+      return NextResponse.json(
+        { success: false, error: 'Roster not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has permission to update this roster
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, organization_id, team_id')
+      .eq('user_id', user.userId);
+
+    if (!adminRoles || adminRoles.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentRoster.events?.teams?.organization_id);
+    const isTeamAdmin = adminRoles.some(r => r.role_type === 'team_admin' && r.team_id === currentRoster.events?.team_id);
+
+    if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be platform admin, organization admin, or team admin.' },
+        { status: 403 }
+      );
+    }
+
+    const { data: roster, error } = await supabaseAdmin
       .from('event_rosters')
       .update({
         ...body,
@@ -145,7 +213,53 @@ export async function DELETE(
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
-    const { error } = await supabase
+    // Get the roster's event and team info for authorization
+    const { data: currentRoster } = await supabaseAdmin
+      .from('event_rosters')
+      .select(`
+        event_id,
+        events:event_id (
+          team_id,
+          teams:team_id (
+            organization_id
+          )
+        )
+      `)
+      .eq('id', params.id)
+      .single();
+
+    if (!currentRoster) {
+      return NextResponse.json(
+        { success: false, error: 'Roster not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has permission to delete this roster (org admin or platform admin only)
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type, organization_id')
+      .eq('user_id', user.userId);
+
+    if (!adminRoles || adminRoles.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be organization admin or platform admin.' },
+        { status: 403 }
+      );
+    }
+
+    const isPlatformAdmin = adminRoles.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
+    const isOrgAdmin = adminRoles.some(r => r.role_type === 'org_admin' && r.organization_id === currentRoster.events?.teams?.organization_id);
+
+    if (!isPlatformAdmin && !isOrgAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions. Must be organization admin or platform admin.' },
+        { status: 403 }
+      );
+    }
+
+    // Delete the roster
+    const { error } = await supabaseAdmin
       .from('event_rosters')
       .delete()
       .eq('id', params.id);
