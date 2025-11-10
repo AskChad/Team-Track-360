@@ -4,33 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface User {
-  id: string;
-  email: string;
-  full_name?: string;
-  platform_role?: string;
-  created_at: string;
-}
-
-interface AdminRole {
-  id: string;
-  user_id: string;
-  role_type: string;
-  organization_id?: string;
-  team_id?: string;
-  created_at: string;
-  profiles?: {
-    email: string;
-    full_name?: string;
-  };
-  parent_organizations?: {
-    name: string;
-  };
-  teams?: {
-    name: string;
-  };
-}
-
 interface Stats {
   total_users: number;
   total_organizations: number;
@@ -38,14 +11,14 @@ interface Stats {
   total_athletes: number;
   total_events: number;
   total_competitions: number;
+  total_locations: number;
+  total_rosters: number;
 }
 
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [adminRoles, setAdminRoles] = useState<AdminRole[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -69,36 +42,42 @@ export default function AdminPage() {
     }
 
     fetchStats(token);
-    fetchAdminRoles(token);
-    fetchUsers(token);
   }, []);
 
   const fetchStats = async (token: string) => {
     try {
       // Fetch counts from various endpoints
-      const [orgsRes, teamsRes, athletesRes, eventsRes, compsRes] = await Promise.all([
+      const [orgsRes, teamsRes, athletesRes, eventsRes, compsRes, locsRes, rostersRes, usersRes] = await Promise.all([
         fetch('/api/organizations', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/teams', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/athletes', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/events', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/competitions', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/locations', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/rosters', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } }),
       ]);
 
-      const [orgsData, teamsData, athletesData, eventsData, compsData] = await Promise.all([
+      const [orgsData, teamsData, athletesData, eventsData, compsData, locsData, rostersData, usersData] = await Promise.all([
         orgsRes.json(),
         teamsRes.json(),
         athletesRes.json(),
         eventsRes.json(),
         compsRes.json(),
+        locsRes.json(),
+        rostersRes.json(),
+        usersRes.json(),
       ]);
 
       setStats({
-        total_users: 0, // We'll update this when we fetch users
+        total_users: usersData.data?.length || 0,
         total_organizations: orgsData.data?.count || 0,
         total_teams: teamsData.data?.count || 0,
         total_athletes: athletesData.data?.count || 0,
         total_events: eventsData.data?.count || 0,
         total_competitions: compsData.data?.count || 0,
+        total_locations: locsData.data?.length || 0,
+        total_rosters: rostersData.data?.count || 0,
       });
 
       setLoading(false);
@@ -109,35 +88,8 @@ export default function AdminPage() {
     }
   };
 
-  const fetchAdminRoles = async (token: string) => {
-    try {
-      const response = await fetch('/api/admin/roles', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setAdminRoles(data.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch admin roles:', err);
-    }
-  };
-
-  const fetchUsers = async (token: string) => {
-    try {
-      const response = await fetch('/api/admin/users', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setUsers(data.data || []);
-        if (stats) {
-          setStats({ ...stats, total_users: data.data?.length || 0 });
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch users:', err);
-    }
+  const handleNavigate = (path: string) => {
+    router.push(path);
   };
 
   if (loading) {
@@ -179,17 +131,21 @@ export default function AdminPage() {
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="border-b border-gray-200">
-            <div className="flex space-x-1 px-6">
+            <div className="flex space-x-1 px-6 overflow-x-auto">
               {[
                 { id: 'overview', name: 'Overview' },
-                { id: 'users', name: 'Users' },
-                { id: 'roles', name: 'Admin Roles' },
+                { id: 'organizations', name: 'Organizations' },
+                { id: 'teams', name: 'Teams' },
+                { id: 'athletes', name: 'Athletes' },
+                { id: 'locations', name: 'Locations' },
+                { id: 'competitions', name: 'Competitions' },
+                { id: 'rosters', name: 'Rosters' },
                 { id: 'settings', name: 'Settings' },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-wrestling-blue text-wrestling-navy'
                       : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -207,7 +163,7 @@ export default function AdminPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-6">System Overview</h2>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white">
                     <p className="text-sm font-bold opacity-90 mb-1">Total Users</p>
                     <p className="text-4xl font-bold">{stats.total_users}</p>
@@ -237,170 +193,149 @@ export default function AdminPage() {
                     <p className="text-sm font-bold opacity-90 mb-1">Competitions</p>
                     <p className="text-4xl font-bold">{stats.total_competitions}</p>
                   </div>
-                </div>
 
-                {/* Quick Actions */}
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Link
-                      href="/organizations"
-                      className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-wrestling-blue hover:shadow-sm transition-all"
-                    >
-                      <span className="font-bold text-gray-900">Manage Organizations</span>
-                      <span className="text-wrestling-blue">→</span>
-                    </Link>
+                  <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-6 text-white">
+                    <p className="text-sm font-bold opacity-90 mb-1">Locations</p>
+                    <p className="text-4xl font-bold">{stats.total_locations}</p>
+                  </div>
 
-                    <Link
-                      href="/teams"
-                      className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-wrestling-blue hover:shadow-sm transition-all"
-                    >
-                      <span className="font-bold text-gray-900">Manage Teams</span>
-                      <span className="text-wrestling-blue">→</span>
-                    </Link>
-
-                    <Link
-                      href="/locations"
-                      className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-wrestling-blue hover:shadow-sm transition-all"
-                    >
-                      <span className="font-bold text-gray-900">Manage Locations</span>
-                      <span className="text-wrestling-blue">→</span>
-                    </Link>
-
-                    <Link
-                      href="/athletes"
-                      className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-wrestling-blue hover:shadow-sm transition-all"
-                    >
-                      <span className="font-bold text-gray-900">Manage Athletes</span>
-                      <span className="text-wrestling-blue">→</span>
-                    </Link>
+                  <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-6 text-white">
+                    <p className="text-sm font-bold opacity-90 mb-1">Rosters</p>
+                    <p className="text-4xl font-bold">{stats.total_rosters}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {activeTab === 'users' && (
+            {activeTab === 'organizations' && (
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-6">User Management</h2>
-
-                {users.length === 0 ? (
-                  <div className="text-center py-12 text-gray-600">
-                    <p>No users found</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            Email
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            Platform Role
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            Created
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {users.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-bold text-gray-900">
-                                {user.full_name || 'No name'}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-600">{user.email}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`inline-block px-2 py-1 text-xs font-bold rounded ${
-                                  user.platform_role === 'platform_admin' || user.platform_role === 'super_admin'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}
-                              >
-                                {user.platform_role || 'user'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {new Date(user.created_at).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Manage Organizations</h2>
+                  <button
+                    onClick={() => handleNavigate('/organizations')}
+                    className="bg-wrestling-blue text-white px-4 py-2 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    Go to Organizations
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-8 text-center">
+                  <p className="text-gray-600 mb-4">
+                    View and manage all organizations in the system
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Click the button above to access the full organizations management page
+                  </p>
+                </div>
               </div>
             )}
 
-            {activeTab === 'roles' && (
+            {activeTab === 'teams' && (
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Admin Role Assignments</h2>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Manage Teams</h2>
+                  <button
+                    onClick={() => handleNavigate('/teams')}
+                    className="bg-wrestling-blue text-white px-4 py-2 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    Go to Teams
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-8 text-center">
+                  <p className="text-gray-600 mb-4">
+                    View and manage all teams across all organizations
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Click the button above to access the full teams management page
+                  </p>
+                </div>
+              </div>
+            )}
 
-                {adminRoles.length === 0 ? (
-                  <div className="text-center py-12 text-gray-600">
-                    <p>No admin roles assigned</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            Role Type
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            Scope
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            Created
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {adminRoles.map((role) => (
-                          <tr key={role.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-bold text-gray-900">
-                                {role.profiles?.full_name || 'Unknown'}
-                              </div>
-                              <div className="text-sm text-gray-600">{role.profiles?.email}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`inline-block px-2 py-1 text-xs font-bold rounded ${
-                                  role.role_type === 'platform_admin' || role.role_type === 'super_admin'
-                                    ? 'bg-red-100 text-red-800'
-                                    : role.role_type === 'org_admin'
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : 'bg-blue-100 text-blue-800'
-                                }`}
-                              >
-                                {role.role_type.replace('_', ' ')}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {role.parent_organizations?.name || role.teams?.name || 'System-wide'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {new Date(role.created_at).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+            {activeTab === 'athletes' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Manage Athletes</h2>
+                  <button
+                    onClick={() => handleNavigate('/athletes')}
+                    className="bg-wrestling-blue text-white px-4 py-2 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    Go to Athletes
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-8 text-center">
+                  <p className="text-gray-600 mb-4">
+                    View and manage all athlete profiles in the system
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Click the button above to access the full athletes management page
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'locations' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Manage Locations</h2>
+                  <button
+                    onClick={() => handleNavigate('/locations')}
+                    className="bg-wrestling-blue text-white px-4 py-2 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    Go to Locations
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-8 text-center">
+                  <p className="text-gray-600 mb-4">
+                    View and manage all venue locations
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Click the button above to access the full locations management page
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'competitions' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Manage Competitions</h2>
+                  <button
+                    onClick={() => handleNavigate('/competitions')}
+                    className="bg-wrestling-blue text-white px-4 py-2 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    Go to Competitions
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-8 text-center">
+                  <p className="text-gray-600 mb-4">
+                    View and manage all competitions
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Click the button above to access the full competitions management page
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'rosters' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Manage Rosters</h2>
+                  <button
+                    onClick={() => handleNavigate('/rosters')}
+                    className="bg-wrestling-blue text-white px-4 py-2 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    Go to Rosters
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-8 text-center">
+                  <p className="text-gray-600 mb-4">
+                    View and manage all event rosters
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Click the button above to access the full rosters management page
+                  </p>
+                </div>
               </div>
             )}
 
@@ -409,7 +344,7 @@ export default function AdminPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-6">System Settings</h2>
                 <div className="space-y-6">
                   <div className="bg-gray-50 rounded-lg p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">Database Information</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Database Information</h3>
                     <dl className="space-y-2">
                       <div>
                         <dt className="text-sm font-bold text-gray-600">Environment</dt>
@@ -423,8 +358,16 @@ export default function AdminPage() {
                   </div>
 
                   <div className="bg-gray-50 rounded-lg p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">Application Version</h3>
-                    <p className="text-sm text-gray-600">Team Track 360 v1.0.0</p>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Application Version</h3>
+                    <p className="text-sm text-gray-600 mb-4">Team Track 360 v1.0.0</p>
+
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 mt-6">Role Hierarchy</h3>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li><span className="font-bold text-red-600">Platform Admin:</span> Full system access</li>
+                      <li><span className="font-bold text-purple-600">Organization Admin:</span> Manage organization and all teams below</li>
+                      <li><span className="font-bold text-blue-600">Team Admin:</span> Manage specific team only</li>
+                      <li><span className="font-bold text-gray-600">User:</span> View-only access</li>
+                    </ul>
                   </div>
                 </div>
               </div>
