@@ -13,7 +13,23 @@ import { decrypt } from '@/lib/encryption';
 import OpenAI from 'openai';
 import { PDFParse } from 'pdf-parse';
 
+// Extend timeout for large file processing (max 60 seconds)
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
+  // Wrap everything to ensure we always return valid JSON
+  try {
+    return await handleUpload(req);
+  } catch (error: any) {
+    console.error('Fatal error in ai-import:', error);
+    return NextResponse.json(
+      { success: false, error: `Fatal error: ${error.message || 'Unknown error occurred'}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleUpload(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
