@@ -505,12 +505,21 @@ export default function AdminPage() {
                               <div className="text-sm text-gray-600">{org.team_count || 0}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <Link
-                                href={`/organizations/${org.id}`}
-                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
-                              >
-                                View →
-                              </Link>
+                              <div className="flex gap-3">
+                                <Link
+                                  href={`/organizations/${org.id}`}
+                                  className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                                >
+                                  View
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                                <Link
+                                  href={`/organizations/${org.id}`}
+                                  className="text-green-600 hover:text-green-700 font-medium"
+                                >
+                                  Edit
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -579,12 +588,21 @@ export default function AdminPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <Link
-                                href={`/teams/${team.id}`}
-                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
-                              >
-                                View →
-                              </Link>
+                              <div className="flex gap-3">
+                                <Link
+                                  href={`/teams/${team.id}`}
+                                  className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                                >
+                                  View
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                                <Link
+                                  href={`/teams/${team.id}`}
+                                  className="text-green-600 hover:text-green-700 font-medium"
+                                >
+                                  Edit
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -646,12 +664,21 @@ export default function AdminPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <Link
-                                href={`/athletes/${athlete.id}`}
-                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
-                              >
-                                View →
-                              </Link>
+                              <div className="flex gap-3">
+                                <Link
+                                  href={`/athletes/${athlete.id}`}
+                                  className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                                >
+                                  View
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                                <Link
+                                  href={`/athletes/${athlete.id}`}
+                                  className="text-green-600 hover:text-green-700 font-medium"
+                                >
+                                  Edit
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -723,12 +750,21 @@ export default function AdminPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <Link
-                                href={`/locations/${location.id}`}
-                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
-                              >
-                                View →
-                              </Link>
+                              <div className="flex gap-3">
+                                <Link
+                                  href={`/locations/${location.id}`}
+                                  className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                                >
+                                  View
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                                <Link
+                                  href={`/locations/${location.id}`}
+                                  className="text-green-600 hover:text-green-700 font-medium"
+                                >
+                                  Edit
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -795,12 +831,21 @@ export default function AdminPage() {
                               <div className="text-sm text-gray-600">{comp.location_name || '-'}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <Link
-                                href={`/competitions/${comp.id}`}
-                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
-                              >
-                                View →
-                              </Link>
+                              <div className="flex gap-3">
+                                <Link
+                                  href={`/competitions/${comp.id}`}
+                                  className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                                >
+                                  View
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                                <Link
+                                  href={`/competitions/${comp.id}`}
+                                  className="text-green-600 hover:text-green-700 font-medium"
+                                >
+                                  Edit
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -860,12 +905,21 @@ export default function AdminPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <Link
-                                href={`/rosters/${roster.id}`}
-                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
-                              >
-                                View →
-                              </Link>
+                              <div className="flex gap-3">
+                                <Link
+                                  href={`/rosters/${roster.id}`}
+                                  className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                                >
+                                  View
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                                <Link
+                                  href={`/rosters/${roster.id}`}
+                                  className="text-green-600 hover:text-green-700 font-medium"
+                                >
+                                  Edit
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         ))}
