@@ -30,18 +30,17 @@ export async function POST(
       );
     }
 
-    // Check if user has permission to create in this org
+    // Check if user has admin permission
     const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type, organization_id')
+      .select('role_type')
       .eq('user_id', user.userId);
 
-    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles?.some(r =>
-      r.role_type === 'org_admin' && r.organization_id === originalWeightClass.organization_id
+    const hasAdminAccess = adminRoles?.some(r =>
+      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
     );
 
-    if (!isPlatformAdmin && !isOrgAdmin) {
+    if (!hasAdminAccess) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }
@@ -63,7 +62,6 @@ export async function POST(
       .from('weight_classes')
       .insert({
         sport_id: originalWeightClass.sport_id,
-        organization_id: originalWeightClass.organization_id,
         name: name || `${originalWeightClass.name} (Copy)`,
         weight: originalWeightClass.weight,
         age_group: age_group !== undefined ? age_group : originalWeightClass.age_group,
@@ -77,10 +75,6 @@ export async function POST(
       .select(`
         *,
         sports (
-          id,
-          name
-        ),
-        organizations (
           id,
           name
         )

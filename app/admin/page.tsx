@@ -81,7 +81,6 @@ interface Sport {
 interface WeightClass {
   id: string;
   sport_id: string;
-  organization_id: string;
   name: string;
   weight: number;
   age_group?: string;
@@ -91,7 +90,6 @@ interface WeightClass {
   notes?: string;
   is_active: boolean;
   sports?: { id: string; name: string };
-  organizations?: { id: string; name: string };
 }
 
 export default function AdminPage() {
@@ -159,7 +157,6 @@ export default function AdminPage() {
 
   const [weightClassFormData, setWeightClassFormData] = useState({
     sport_id: '',
-    organization_id: '',
     name: '',
     weight: '',
     age_group: '',
@@ -438,7 +435,6 @@ export default function AdminPage() {
       // Reset form and refresh
       setWeightClassFormData({
         sport_id: '',
-        organization_id: '',
         name: '',
         weight: '',
         age_group: '',
@@ -481,7 +477,6 @@ export default function AdminPage() {
       // Reset form and refresh
       setWeightClassFormData({
         sport_id: '',
-        organization_id: '',
         name: '',
         weight: '',
         age_group: '',
@@ -549,7 +544,6 @@ export default function AdminPage() {
     setEditingWeightClass(weightClass);
     setWeightClassFormData({
       sport_id: weightClass.sport_id,
-      organization_id: weightClass.organization_id,
       name: weightClass.name,
       weight: weightClass.weight.toString(),
       age_group: weightClass.age_group || '',
@@ -1061,7 +1055,6 @@ export default function AdminPage() {
                       setEditingWeightClass(null);
                       setWeightClassFormData({
                         sport_id: '',
-                        organization_id: '',
                         name: '',
                         weight: '',
                         age_group: '',
@@ -1090,7 +1083,6 @@ export default function AdminPage() {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Sport</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Organization</th>
                           <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
                           <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Weight</th>
                           <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age Group</th>
@@ -1105,9 +1097,6 @@ export default function AdminPage() {
                           <tr key={wc.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {wc.sports?.name || 'N/A'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {wc.organizations?.name || 'N/A'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {wc.name}
@@ -1765,46 +1754,24 @@ export default function AdminPage() {
               </h2>
 
               <form onSubmit={editingWeightClass ? handleEditWeightClass : handleCreateWeightClass} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Sport */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">
-                      Sport *
-                    </label>
-                    <select
-                      required
-                      value={weightClassFormData.sport_id}
-                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, sport_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                    >
-                      <option value="">Select sport</option>
-                      {sports.map((sport) => (
-                        <option key={sport.id} value={sport.id}>
-                          {sport.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Organization */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">
-                      Organization *
-                    </label>
-                    <select
-                      required
-                      value={weightClassFormData.organization_id}
-                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, organization_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                    >
-                      <option value="">Select organization</option>
-                      {organizations.map((org) => (
-                        <option key={org.id} value={org.id}>
-                          {org.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Sport */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Sport *
+                  </label>
+                  <select
+                    required
+                    value={weightClassFormData.sport_id}
+                    onChange={(e) => setWeightClassFormData({ ...weightClassFormData, sport_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                  >
+                    <option value="">Select sport</option>
+                    {sports.map((sport) => (
+                      <option key={sport.id} value={sport.id}>
+                        {sport.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -16,13 +16,12 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const sportId = searchParams.get('sport_id');
-    const organizationId = searchParams.get('organization_id');
     const isActive = searchParams.get('is_active');
 
     // Get user's admin roles
     const { data: adminRoles, error: rolesError } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type, organization_id')
+      .select('role_type')
       .eq('user_id', user.userId);
 
     if (rolesError) {
@@ -33,11 +32,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check user's role level
-    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const orgAdminOrgIds = adminRoles?.filter(r => r.role_type === 'org_admin').map(r => r.organization_id) || [];
+    // Check user has admin access (org admin or platform admin)
+    const hasAdminAccess = adminRoles?.some(r =>
+      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
+    );
 
-    // Build query
+    if (!hasAdminAccess) {
+      return NextResponse.json({
+        success: false,
+        error: 'Insufficient permissions. Must be org admin or platform admin.',
+      }, { status: 403 });
+    }
+
+    // Build query - all admins see all weight classes (sport-specific, not org-specific)
     let query = supabaseAdmin
       .from('weight_classes')
       .select(`
@@ -45,35 +52,14 @@ export async function GET(req: NextRequest) {
         sports (
           id,
           name
-        ),
-        organizations (
-          id,
-          name
         )
       `)
       .order('sport_id')
       .order('weight');
 
-    // Apply role-based filtering
-    if (!isPlatformAdmin) {
-      if (orgAdminOrgIds.length === 0) {
-        // No admin access at all
-        return NextResponse.json({
-          success: false,
-          error: 'Insufficient permissions. Must be org admin or platform admin.',
-        }, { status: 403 });
-      }
-      // Org admins can only see their organization's weight classes
-      query = query.in('organization_id', orgAdminOrgIds);
-    }
-
     // Apply filters
     if (sportId) {
       query = query.eq('sport_id', sportId);
-    }
-
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId);
     }
 
     if (isActive !== null && isActive !== undefined) {
@@ -114,7 +100,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       sport_id,
-      organization_id,
       name,
       weight,
       age_group,
@@ -125,25 +110,26 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!sport_id || !organization_id || !name || !weight) {
+    if (!sport_id || !name || !weight) {
       return NextResponse.json(
-        { success: false, error: 'Sport, organization, name, and weight are required' },
+        { success: false, error: 'Sport, name, and weight are required' },
         { status: 400 }
       );
     }
 
-    // Check if user has permission (platform_admin OR org_admin for this org)
+    // Check if user has admin permission (org_admin or platform_admin)
     const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type, organization_id')
+      .select('role_type')
       .eq('user_id', user.userId);
 
-    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === organization_id);
+    const hasAdminAccess = adminRoles?.some(r =>
+      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
+    );
 
-    if (!isPlatformAdmin && !isOrgAdmin) {
+    if (!hasAdminAccess) {
       return NextResponse.json(
-        { success: false, error: 'Insufficient permissions. Must be platform admin or org admin for this organization.' },
+        { success: false, error: 'Insufficient permissions. Must be org admin or platform admin.' },
         { status: 403 }
       );
     }
@@ -153,7 +139,6 @@ export async function POST(req: NextRequest) {
       .from('weight_classes')
       .insert({
         sport_id,
-        organization_id,
         name,
         weight: parseFloat(weight),
         age_group,
@@ -166,10 +151,6 @@ export async function POST(req: NextRequest) {
       .select(`
         *,
         sports (
-          id,
-          name
-        ),
-        organizations (
           id,
           name
         )

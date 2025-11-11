@@ -21,11 +21,19 @@ export async function GET(
     // Get user's admin roles
     const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type, organization_id')
+      .select('role_type')
       .eq('user_id', user.userId);
 
-    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const orgAdminOrgIds = adminRoles?.filter(r => r.role_type === 'org_admin').map(r => r.organization_id) || [];
+    const hasAdminAccess = adminRoles?.some(r =>
+      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
+    );
+
+    if (!hasAdminAccess) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
 
     // Fetch the weight class
     const { data: weightClass, error } = await supabaseAdmin
@@ -33,10 +41,6 @@ export async function GET(
       .select(`
         *,
         sports (
-          id,
-          name
-        ),
-        organizations (
           id,
           name
         )
@@ -48,14 +52,6 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: 'Weight class not found' },
         { status: 404 }
-      );
-    }
-
-    // Check permissions
-    if (!isPlatformAdmin && !orgAdminOrgIds.includes(weightClass.organization_id)) {
-      return NextResponse.json(
-        { success: false, error: 'Insufficient permissions' },
-        { status: 403 }
       );
     }
 
@@ -83,7 +79,6 @@ export async function PUT(
     const body = await req.json();
     const {
       sport_id,
-      organization_id,
       name,
       weight,
       age_group,
@@ -94,32 +89,17 @@ export async function PUT(
       is_active,
     } = body;
 
-    // Get existing weight class to check permissions
-    const { data: existingWeightClass, error: fetchError } = await supabaseAdmin
-      .from('weight_classes')
-      .select('organization_id')
-      .eq('id', params.id)
-      .single();
-
-    if (fetchError || !existingWeightClass) {
-      return NextResponse.json(
-        { success: false, error: 'Weight class not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if user has permission
+    // Check if user has admin permission
     const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type, organization_id')
+      .select('role_type')
       .eq('user_id', user.userId);
 
-    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles?.some(r =>
-      r.role_type === 'org_admin' && r.organization_id === existingWeightClass.organization_id
+    const hasAdminAccess = adminRoles?.some(r =>
+      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
     );
 
-    if (!isPlatformAdmin && !isOrgAdmin) {
+    if (!hasAdminAccess) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }
@@ -129,7 +109,6 @@ export async function PUT(
     // Update weight class
     const updateData: any = {};
     if (sport_id !== undefined) updateData.sport_id = sport_id;
-    if (organization_id !== undefined) updateData.organization_id = organization_id;
     if (name !== undefined) updateData.name = name;
     if (weight !== undefined) updateData.weight = parseFloat(weight);
     if (age_group !== undefined) updateData.age_group = age_group;
@@ -146,10 +125,6 @@ export async function PUT(
       .select(`
         *,
         sports (
-          id,
-          name
-        ),
-        organizations (
           id,
           name
         )
@@ -185,32 +160,17 @@ export async function DELETE(
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
-    // Get existing weight class to check permissions
-    const { data: existingWeightClass, error: fetchError } = await supabaseAdmin
-      .from('weight_classes')
-      .select('organization_id')
-      .eq('id', params.id)
-      .single();
-
-    if (fetchError || !existingWeightClass) {
-      return NextResponse.json(
-        { success: false, error: 'Weight class not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if user has permission
+    // Check if user has admin permission
     const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
-      .select('role_type, organization_id')
+      .select('role_type')
       .eq('user_id', user.userId);
 
-    const isPlatformAdmin = adminRoles?.some(r => ['platform_admin', 'super_admin'].includes(r.role_type));
-    const isOrgAdmin = adminRoles?.some(r =>
-      r.role_type === 'org_admin' && r.organization_id === existingWeightClass.organization_id
+    const hasAdminAccess = adminRoles?.some(r =>
+      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
     );
 
-    if (!isPlatformAdmin && !isOrgAdmin) {
+    if (!hasAdminAccess) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }
