@@ -240,12 +240,8 @@ export default function TeamDetailPage() {
           >
             <div className="absolute inset-0 flex items-center justify-between px-8">
               <div className="flex items-center gap-4">
-                {team.logo_url ? (
+                {team.logo_url && (
                   <img src={team.logo_url} alt={team.name} className="h-20 w-20 object-contain" />
-                ) : (
-                  <div className="text-white text-4xl font-bold">
-                    {team.name.charAt(0)}
-                  </div>
                 )}
                 <h1 className="text-3xl font-bold text-white">{team.name}</h1>
               </div>
