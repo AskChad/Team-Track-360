@@ -11,6 +11,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
 import OpenAI from 'openai';
+import pdf from 'pdf-parse';
 
 export async function POST(req: NextRequest) {
   try {
@@ -105,7 +106,28 @@ export async function POST(req: NextRequest) {
     // Read file content
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const fileContent = buffer.toString('utf-8');
+
+    // Parse file content based on file type
+    let fileContent: string;
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith('.pdf')) {
+      console.log('Parsing PDF file...');
+      try {
+        const pdfData = await pdf(buffer);
+        fileContent = pdfData.text;
+        console.log(`PDF parsed: ${pdfData.numpages} pages, ${fileContent.length} characters`);
+      } catch (pdfError: any) {
+        console.error('PDF parsing error:', pdfError);
+        return NextResponse.json(
+          { success: false, error: `Failed to parse PDF: ${pdfError.message}` },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For text files (CSV, JSON, TXT, etc.)
+      fileContent = buffer.toString('utf-8');
+    }
 
     // Function to estimate tokens (rough estimate: 1 token ≈ 4 characters)
     const estimateTokens = (text: string) => Math.ceil(text.length / 4);
