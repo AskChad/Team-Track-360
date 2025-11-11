@@ -12,8 +12,48 @@ import { requireAuth } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
 import OpenAI from 'openai';
 
+// Import PDF parser using require (pdf-parse doesn't have ESM support)
+// @ts-ignore - pdf-parse doesn't have proper TypeScript definitions
+const pdfParse = require('pdf-parse');
+
+// RTF parser types
+// @ts-ignore - rtf-parser doesn't have TypeScript definitions
+const rtfParser = require('rtf-parser');
+
 // Extend timeout for large file processing (max 60 seconds)
 export const maxDuration = 60;
+
+// Helper function to extract plain text from RTF parsed document
+function extractTextFromRTF(doc: any): string {
+  let text = '';
+
+  if (!doc || !doc.content) {
+    return '';
+  }
+
+  // Recursively extract text from RTF document structure
+  function extractContent(node: any): void {
+    if (!node) return;
+
+    if (typeof node === 'string') {
+      text += node;
+    } else if (Array.isArray(node)) {
+      node.forEach(extractContent);
+    } else if (node.content) {
+      extractContent(node.content);
+    } else if (node.value) {
+      text += node.value;
+    }
+
+    // Add line breaks for paragraphs
+    if (node.type === 'paragraph' || node.type === 'line') {
+      text += '\n';
+    }
+  }
+
+  extractContent(doc.content);
+  return text.trim();
+}
 
 export async function POST(req: NextRequest) {
   // Wrap everything to ensure we always return valid JSON
@@ -131,23 +171,52 @@ async function handleUpload(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Parse file content - only text-based files supported
-    // For PDF support, please convert to TXT first
+    // Parse file content based on file type
     const fileName = file.name.toLowerCase();
 
     // Validate file type
-    const supportedExtensions = ['.txt', '.csv', '.json', '.tsv'];
+    const supportedExtensions = ['.txt', '.csv', '.json', '.tsv', '.pdf', '.rtf'];
     const isSupported = supportedExtensions.some(ext => fileName.endsWith(ext));
 
     if (!isSupported) {
       return NextResponse.json(
-        { success: false, error: `Unsupported file type. Please upload a text-based file: ${supportedExtensions.join(', ')}. For PDF files, please convert to TXT format first.` },
+        { success: false, error: `Unsupported file type. Please upload one of: ${supportedExtensions.join(', ')}` },
         { status: 400 }
       );
     }
 
-    // Read text content
-    const fileContent = buffer.toString('utf-8');
+    // Parse content based on file type
+    let fileContent: string;
+
+    try {
+      if (fileName.endsWith('.pdf')) {
+        // Parse PDF file
+        const pdfData = await pdfParse(buffer);
+        fileContent = pdfData.text;
+        console.log(`Extracted ${fileContent.length} characters from PDF (${pdfData.numpages} pages)`);
+      } else if (fileName.endsWith('.rtf')) {
+        // Parse RTF file
+        const rtfContent = buffer.toString('utf-8');
+        const parsed = await new Promise<any>((resolve, reject) => {
+          rtfParser.parseString(rtfContent, (err: any, doc: any) => {
+            if (err) reject(err);
+            else resolve(doc);
+          });
+        });
+        // Extract text content from RTF document
+        fileContent = extractTextFromRTF(parsed);
+        console.log(`Extracted ${fileContent.length} characters from RTF`);
+      } else {
+        // Plain text file (txt, csv, json, tsv)
+        fileContent = buffer.toString('utf-8');
+      }
+    } catch (parseError: any) {
+      console.error('File parsing error:', parseError);
+      return NextResponse.json(
+        { success: false, error: `Failed to parse file: ${parseError.message}. The file may be corrupted or in an unsupported format.` },
+        { status: 400 }
+      );
+    }
 
     console.log(`Processing ${file.name} (${Math.round(file.size / 1024)}KB, ${fileContent.length} characters)...`);
     console.log(`File preview (first 500 chars):\n${fileContent.substring(0, 500)}`);
