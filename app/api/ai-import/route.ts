@@ -150,6 +150,7 @@ async function handleUpload(req: NextRequest) {
     const fileContent = buffer.toString('utf-8');
 
     console.log(`Processing ${file.name} (${Math.round(file.size / 1024)}KB, ${fileContent.length} characters)...`);
+    console.log(`File preview (first 500 chars):\n${fileContent.substring(0, 500)}`);
 
     // Warn if file is very large
     if (fileContent.length > 500000) {
@@ -251,13 +252,16 @@ Description: ${schema.description}
 Required fields: ${schema.required.join(', ')}
 Optional fields: ${schema.optional.join(', ')}
 
+File format: ${fileName.endsWith('.csv') ? 'CSV (comma-separated values)' : fileName.endsWith('.tsv') ? 'TSV (tab-separated values)' : fileName.endsWith('.json') ? 'JSON' : 'Plain text'}
+
 Instructions:
 1. Extract as many ${entityType} records as you can find in the file${contentChunks.length > 1 ? ` (this is chunk ${chunkNum} of ${chunksToProcess.length}, showing first ${chunksToProcess.length} of ${contentChunks.length} total chunks)` : ''}
-2. Map data to the specified fields as accurately as possible
-3. For any data that doesn't fit the schema, include it in a "notes" field
-4. Return a JSON array of objects, where each object represents one ${entityType} record
-5. If you cannot extract certain required fields, set them to null and add explanation in notes
-6. Be flexible with field names - map variations to the closest matching field
+2. ${fileName.endsWith('.csv') || fileName.endsWith('.tsv') ? 'Parse the CSV/TSV format - first row is the header with column names, subsequent rows are data records' : 'Extract data from the text format provided'}
+3. Map data to the specified fields as accurately as possible - be flexible with field name variations (e.g., "Competition Name" maps to "name", "Event" maps to "name", etc.)
+4. For any data that doesn't fit the schema, include it in a "notes" field
+5. Return a JSON array of objects, where each object represents one ${entityType} record
+6. If you cannot extract certain required fields, set them to null and add explanation in notes
+7. IMPORTANT: Even if data is messy or incomplete, extract whatever you can find. Do your best to interpret the data.
 
 Return ONLY valid JSON in this format:
 {
@@ -267,11 +271,13 @@ Return ONLY valid JSON in this format:
       "notes": "Any additional info that didn't fit standard fields"
     }
   ]
-}`
+}
+
+If the file appears empty or has no extractable data, return {"records": []} with an empty array.`
             },
             {
               role: 'user',
-              content: `Parse this ${file.name} file and extract ${entityType} data:\n\n${chunk}`
+              content: `Parse this ${fileName.endsWith('.csv') ? 'CSV' : fileName.endsWith('.tsv') ? 'TSV' : fileName.endsWith('.json') ? 'JSON' : 'text'} file (${file.name}) and extract ${entityType} data:\n\n${chunk}`
             }
           ],
           temperature: 0.1,
@@ -279,11 +285,19 @@ Return ONLY valid JSON in this format:
         });
 
         const responseText = completion.choices[0]?.message?.content;
+        console.log(`OpenAI response for chunk ${chunkNum}:`, responseText?.substring(0, 500));
+
         if (responseText) {
           const parsed = JSON.parse(responseText);
           const chunkRecords = parsed.records || [];
           allRecords.push(...chunkRecords);
           console.log(`Chunk ${chunkNum} extracted ${chunkRecords.length} records`);
+
+          if (chunkRecords.length === 0) {
+            console.warn(`No records extracted from chunk ${chunkNum}. File may be empty or format not recognized.`);
+          }
+        } else {
+          console.error(`No response from OpenAI for chunk ${chunkNum}`);
         }
       } catch (chunkError: any) {
         console.error(`Error processing chunk ${chunkNum}:`, chunkError.message);
