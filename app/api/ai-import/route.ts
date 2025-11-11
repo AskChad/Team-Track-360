@@ -119,6 +119,15 @@ async function handleUpload(req: NextRequest) {
     // Initialize OpenAI client
     const openai = new OpenAI({ apiKey: openaiApiKey });
 
+    // Check file size (limit to 5MB to prevent timeouts)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { success: false, error: `File too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum size is 5MB. Please split your file into smaller parts or extract just the pages you need.` },
+        { status: 400 }
+      );
+    }
+
     // Read file content
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
@@ -128,12 +137,17 @@ async function handleUpload(req: NextRequest) {
     const fileName = file.name.toLowerCase();
 
     if (fileName.endsWith('.pdf')) {
-      console.log('Parsing PDF file...');
+      console.log(`Parsing PDF file (${Math.round(file.size / 1024)}KB)...`);
       try {
         const parser = new PDFParse({ data: buffer });
         const textResult = await parser.getText();
         fileContent = textResult.text;
         console.log(`PDF parsed: ${textResult.total} pages, ${fileContent.length} characters`);
+
+        // Warn if file is very large
+        if (fileContent.length > 500000) {
+          console.warn(`Large file detected: ${fileContent.length} characters - may take 30-60 seconds to process`);
+        }
       } catch (pdfError: any) {
         console.error('PDF parsing error:', pdfError);
         return NextResponse.json(
@@ -205,19 +219,26 @@ async function handleUpload(req: NextRequest) {
     const schema = schemas[entityType as keyof typeof schemas];
 
     // Chunk the file content if it's too large
-    const contentChunks = chunkText(fileContent, 100000);
+    const contentChunks = chunkText(fileContent, 80000); // Reduced from 100k for faster processing
     const estimatedTokens = estimateTokens(fileContent);
 
     console.log(`Processing file: ${file.name}, Estimated tokens: ${estimatedTokens}, Chunks: ${contentChunks.length}`);
 
+    // Limit to first 3 chunks to prevent timeout (can process ~300k tokens in 60 seconds)
+    const chunksToProcess = contentChunks.slice(0, 3);
+
+    if (contentChunks.length > 3) {
+      console.warn(`File has ${contentChunks.length} chunks but limiting to first 3 to prevent timeout`);
+    }
+
     // Process each chunk and collect all records
     const allRecords: any[] = [];
 
-    for (let i = 0; i < contentChunks.length; i++) {
-      const chunk = contentChunks[i];
+    for (let i = 0; i < chunksToProcess.length; i++) {
+      const chunk = chunksToProcess[i];
       const chunkNum = i + 1;
 
-      console.log(`Processing chunk ${chunkNum}/${contentChunks.length} (${estimateTokens(chunk)} tokens)...`);
+      console.log(`Processing chunk ${chunkNum}/${chunksToProcess.length} of ${contentChunks.length} total (${estimateTokens(chunk)} tokens)...`);
 
       try {
         const completion = await openai.chat.completions.create({
@@ -234,7 +255,7 @@ Required fields: ${schema.required.join(', ')}
 Optional fields: ${schema.optional.join(', ')}
 
 Instructions:
-1. Extract as many ${entityType} records as you can find in the file${contentChunks.length > 1 ? ` (this is chunk ${chunkNum} of ${contentChunks.length})` : ''}
+1. Extract as many ${entityType} records as you can find in the file${contentChunks.length > 1 ? ` (this is chunk ${chunkNum} of ${chunksToProcess.length}, showing first ${chunksToProcess.length} of ${contentChunks.length} total chunks)` : ''}
 2. Map data to the specified fields as accurately as possible
 3. For any data that doesn't fit the schema, include it in a "notes" field
 4. Return a JSON array of objects, where each object represents one ${entityType} record
@@ -469,14 +490,22 @@ Return ONLY valid JSON in this format:
       }
     }
 
+    // Build response message
+    let message = `Imported ${results.success} of ${records.length} records`;
+    if (contentChunks.length > chunksToProcess.length) {
+      message += `. Note: File was very large - processed first ${chunksToProcess.length} of ${contentChunks.length} sections. Consider splitting the file for complete import.`;
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Imported ${results.success} of ${records.length} records`,
+      message,
       data: {
         total: records.length,
         successful: results.success,
         failed: results.failed,
-        errors: results.errors
+        errors: results.errors,
+        chunksProcessed: chunksToProcess.length,
+        totalChunks: contentChunks.length
       }
     });
 
