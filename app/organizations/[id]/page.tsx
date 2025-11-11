@@ -52,11 +52,17 @@ export default function OrganizationDetailPage({ params }: { params: { id: strin
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
   const [formData, setFormData] = useState<Partial<Organization>>({});
+  const [openaiKeyStatus, setOpenaiKeyStatus] = useState<{ has_key: boolean; updated_at?: string }>({ has_key: false });
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [openaiKeyLoading, setOpenaiKeyLoading] = useState(false);
+  const [openaiKeyMessage, setOpenaiKeyMessage] = useState('');
 
   useEffect(() => {
     fetchOrganization();
     fetchTeams();
     fetchSports();
+    fetchOpenaiKeyStatus();
   }, [params.id]);
 
   const fetchOrganization = async () => {
@@ -119,6 +125,86 @@ export default function OrganizationDetailPage({ params }: { params: { id: strin
       }
     } catch (err) {
       console.error('Failed to load sports');
+    }
+  };
+
+  const fetchOpenaiKeyStatus = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/organizations/${params.id}/openai-key`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOpenaiKeyStatus(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load OpenAI key status');
+    }
+  };
+
+  const handleSaveOpenaiKey = async () => {
+    if (!openaiKey.trim()) {
+      setOpenaiKeyMessage('Please enter an API key');
+      return;
+    }
+
+    setOpenaiKeyLoading(true);
+    setOpenaiKeyMessage('');
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/organizations/${params.id}/openai-key`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ api_key: openaiKey }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setOpenaiKeyMessage('API key saved successfully');
+        setOpenaiKey('');
+        setShowOpenaiKey(false);
+        fetchOpenaiKeyStatus();
+      } else {
+        setOpenaiKeyMessage(data.error || 'Failed to save API key');
+      }
+    } catch (err) {
+      setOpenaiKeyMessage('Failed to save API key');
+    } finally {
+      setOpenaiKeyLoading(false);
+    }
+  };
+
+  const handleDeleteOpenaiKey = async () => {
+    if (!confirm('Are you sure you want to remove the OpenAI API key? AI-powered imports will no longer work.')) {
+      return;
+    }
+
+    setOpenaiKeyLoading(true);
+    setOpenaiKeyMessage('');
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/organizations/${params.id}/openai-key`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setOpenaiKeyMessage('API key removed successfully');
+        fetchOpenaiKeyStatus();
+      } else {
+        setOpenaiKeyMessage(data.error || 'Failed to remove API key');
+      }
+    } catch (err) {
+      setOpenaiKeyMessage('Failed to remove API key');
+    } finally {
+      setOpenaiKeyLoading(false);
     }
   };
 
@@ -412,6 +498,78 @@ export default function OrganizationDetailPage({ params }: { params: { id: strin
                 </div>
               </div>
 
+              {/* OpenAI API Key Settings */}
+              <div className="border-t border-gray-200 pt-6 mt-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">AI-Powered Imports</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Configure an OpenAI API key to enable AI-powered data imports for athletes, locations, competitions, and weight classes.
+                </p>
+
+                {openaiKeyMessage && (
+                  <div className={`mb-4 px-4 py-3 rounded ${openaiKeyMessage.includes('success') ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                    {openaiKeyMessage}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {openaiKeyStatus.has_key ? (
+                    <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-700 font-bold">API Key Configured</span>
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        </div>
+                        {openaiKeyStatus.updated_at && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            Last updated: {formatDate(openaiKeyStatus.updated_at)}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleDeleteOpenaiKey}
+                        disabled={openaiKeyLoading}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {openaiKeyLoading ? 'Removing...' : 'Remove Key'}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      {openaiKeyStatus.has_key ? 'Update OpenAI API Key' : 'OpenAI API Key'}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type={showOpenaiKey ? 'text' : 'password'}
+                        value={openaiKey}
+                        onChange={(e) => setOpenaiKey(e.target.value)}
+                        placeholder="sk-..."
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        {showOpenaiKey ? 'Hide' : 'Show'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveOpenaiKey}
+                        disabled={openaiKeyLoading}
+                        className="bg-wrestling-teal text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50"
+                      >
+                        {openaiKeyLoading ? 'Saving...' : 'Save Key'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-wrestling-blue hover:underline">OpenAI Platform</a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-4 pt-4">
                 <button
                   type="submit"
@@ -588,6 +746,53 @@ export default function OrganizationDetailPage({ params }: { params: { id: strin
                   </div>
                 )}
               </dl>
+            </div>
+
+            {/* AI Settings */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">AI-Powered Imports</h2>
+
+              {openaiKeyMessage && (
+                <div className={`mb-4 px-4 py-3 rounded text-sm ${openaiKeyMessage.includes('success') ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                  {openaiKeyMessage}
+                </div>
+              )}
+
+              {openaiKeyStatus.has_key ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-sm font-bold text-green-700">Configured</span>
+                  </div>
+                  {openaiKeyStatus.updated_at && (
+                    <p className="text-xs text-gray-600">
+                      Last updated: {formatDate(openaiKeyStatus.updated_at)}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-200 text-sm"
+                  >
+                    Manage API Key
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    <span className="text-sm font-bold text-gray-600">Not Configured</span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Configure an OpenAI API key to enable AI-powered bulk data imports.
+                  </p>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 text-sm"
+                  >
+                    Configure API Key
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           </div>
