@@ -119,7 +119,7 @@ export default function AthleteDetailPage({ params }: { params: { id: string } }
       });
       const data = await response.json();
       if (data.success) {
-        setTeams(data.data || []);
+        setTeams(data.data.teams || []);
       }
     } catch (err) {
       console.error('Failed to load teams');
