@@ -114,10 +114,10 @@ export async function POST(req: NextRequest) {
     if (fileName.endsWith('.pdf')) {
       console.log('Parsing PDF file...');
       try {
-        const parser = new PDFParse();
-        const pdfData = await parser.parse(buffer);
-        fileContent = pdfData.text;
-        console.log(`PDF parsed: ${pdfData.pages.length} pages, ${fileContent.length} characters`);
+        const parser = new PDFParse({ data: buffer });
+        const textResult = await parser.getText();
+        fileContent = textResult.text;
+        console.log(`PDF parsed: ${textResult.total} pages, ${fileContent.length} characters`);
       } catch (pdfError: any) {
         console.error('PDF parsing error:', pdfError);
         return NextResponse.json(
