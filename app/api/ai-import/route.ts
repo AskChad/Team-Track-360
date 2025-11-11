@@ -91,9 +91,10 @@ export async function POST(req: NextRequest) {
     let openaiApiKey: string;
     try {
       openaiApiKey = decrypt(org.openai_api_key_encrypted);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Decryption error:', error.message, error.stack);
       return NextResponse.json(
-        { success: false, error: 'Failed to decrypt OpenAI API key' },
+        { success: false, error: `Failed to decrypt OpenAI API key: ${error.message}` },
         { status: 500 }
       );
     }
@@ -390,9 +391,14 @@ Return ONLY valid JSON in this format:
     });
 
   } catch (error: any) {
-    console.error('AI Import error:', error);
+    console.error('AI Import error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
     return NextResponse.json(
-      { success: false, error: error.message || 'Import failed' },
+      { success: false, error: error.message || 'Import failed. Please check server logs for details.' },
       { status: 500 }
     );
   }
