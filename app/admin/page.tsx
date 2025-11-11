@@ -587,6 +587,17 @@ export default function AdminPage() {
       });
 
       const data = await response.json();
+
+      // Check if response was not OK (non-2xx status)
+      if (!response.ok) {
+        setUploadResult({
+          success: false,
+          message: `Error ${response.status}: ${data.error || data.message || 'Upload failed'}`,
+          data: data.data
+        });
+        return;
+      }
+
       setUploadResult(data);
 
       if (data.success) {
@@ -599,8 +610,12 @@ export default function AdminPage() {
           setUploadResult(null);
         }, 2000);
       }
-    } catch (err) {
-      setUploadResult({ success: false, message: 'Failed to upload file' });
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setUploadResult({
+        success: false,
+        message: `Network error: ${err.message || 'Failed to upload file. Please check your connection and try again.'}`
+      });
     } finally {
       setUploadLoading(false);
     }
