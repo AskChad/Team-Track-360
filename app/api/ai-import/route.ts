@@ -107,6 +107,38 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
     const fileContent = buffer.toString('utf-8');
 
+    // Function to estimate tokens (rough estimate: 1 token ≈ 4 characters)
+    const estimateTokens = (text: string) => Math.ceil(text.length / 4);
+
+    // Function to chunk text to fit within token limits
+    const chunkText = (text: string, maxTokens: number = 100000): string[] => {
+      const maxChars = maxTokens * 4; // Conservative estimate
+      const chunks: string[] = [];
+
+      if (text.length <= maxChars) {
+        return [text];
+      }
+
+      // Split by lines to avoid breaking in the middle of data
+      const lines = text.split('\n');
+      let currentChunk = '';
+
+      for (const line of lines) {
+        if ((currentChunk + line).length > maxChars && currentChunk.length > 0) {
+          chunks.push(currentChunk);
+          currentChunk = line + '\n';
+        } else {
+          currentChunk += line + '\n';
+        }
+      }
+
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk);
+      }
+
+      return chunks;
+    };
+
     // Get field schemas for the entity type
     const schemas = {
       athletes: {
@@ -133,13 +165,28 @@ export async function POST(req: NextRequest) {
 
     const schema = schemas[entityType as keyof typeof schemas];
 
-    // Use OpenAI to parse the file
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a data extraction assistant. Extract structured data from the provided file content and format it as JSON.
+    // Chunk the file content if it's too large
+    const contentChunks = chunkText(fileContent, 100000);
+    const estimatedTokens = estimateTokens(fileContent);
+
+    console.log(`Processing file: ${file.name}, Estimated tokens: ${estimatedTokens}, Chunks: ${contentChunks.length}`);
+
+    // Process each chunk and collect all records
+    const allRecords: any[] = [];
+
+    for (let i = 0; i < contentChunks.length; i++) {
+      const chunk = contentChunks[i];
+      const chunkNum = i + 1;
+
+      console.log(`Processing chunk ${chunkNum}/${contentChunks.length} (${estimateTokens(chunk)} tokens)...`);
+
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a data extraction assistant. Extract structured data from the provided file content and format it as JSON.
 
 Entity type: ${entityType}
 Description: ${schema.description}
@@ -148,7 +195,7 @@ Required fields: ${schema.required.join(', ')}
 Optional fields: ${schema.optional.join(', ')}
 
 Instructions:
-1. Extract as many ${entityType} records as you can find in the file
+1. Extract as many ${entityType} records as you can find in the file${contentChunks.length > 1 ? ` (this is chunk ${chunkNum} of ${contentChunks.length})` : ''}
 2. Map data to the specified fields as accurately as possible
 3. For any data that doesn't fit the schema, include it in a "notes" field
 4. Return a JSON array of objects, where each object represents one ${entityType} record
@@ -164,26 +211,30 @@ Return ONLY valid JSON in this format:
     }
   ]
 }`
-        },
-        {
-          role: 'user',
-          content: `Parse this ${file.name} file and extract ${entityType} data:\n\n${fileContent}`
-        }
-      ],
-      temperature: 0.1,
-      response_format: { type: 'json_object' }
-    });
+            },
+            {
+              role: 'user',
+              content: `Parse this ${file.name} file and extract ${entityType} data:\n\n${chunk}`
+            }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        });
 
-    const responseText = completion.choices[0]?.message?.content;
-    if (!responseText) {
-      return NextResponse.json(
-        { success: false, error: 'No response from OpenAI' },
-        { status: 500 }
-      );
+        const responseText = completion.choices[0]?.message?.content;
+        if (responseText) {
+          const parsed = JSON.parse(responseText);
+          const chunkRecords = parsed.records || [];
+          allRecords.push(...chunkRecords);
+          console.log(`Chunk ${chunkNum} extracted ${chunkRecords.length} records`);
+        }
+      } catch (chunkError: any) {
+        console.error(`Error processing chunk ${chunkNum}:`, chunkError.message);
+        // Continue processing other chunks even if one fails
+      }
     }
 
-    const parsed = JSON.parse(responseText);
-    const records = parsed.records || [];
+    const records = allRecords;
 
     if (records.length === 0) {
       return NextResponse.json(
