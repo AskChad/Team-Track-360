@@ -224,11 +224,11 @@ async function handleUpload(req: NextRequest) {
 
     console.log(`Processing file: ${file.name}, Estimated tokens: ${estimatedTokens}, Chunks: ${contentChunks.length}`);
 
-    // Limit to first 3 chunks to prevent timeout (can process ~300k tokens in 60 seconds)
-    const chunksToProcess = contentChunks.slice(0, 3);
+    // Limit to first 2 chunks to prevent timeout (can process ~160k tokens safely in 60 seconds)
+    const chunksToProcess = contentChunks.slice(0, 2);
 
-    if (contentChunks.length > 3) {
-      console.warn(`File has ${contentChunks.length} chunks but limiting to first 3 to prevent timeout`);
+    if (contentChunks.length > 2) {
+      console.warn(`File has ${contentChunks.length} chunks but limiting to first 2 to prevent timeout`);
     }
 
     // Process each chunk and collect all records
