@@ -590,9 +590,9 @@ export default function AdminPage() {
       setUploadResult(data);
 
       if (data.success) {
-        // Wait 2 seconds then refresh competitions list
+        // Wait 2 seconds then refresh data
         setTimeout(() => {
-          if (token) fetchCompetitions(token);
+          if (token) fetchStats(token);
           setShowCompetitionUploadModal(false);
           setUploadFile(null);
           setUploadOrgId('');
