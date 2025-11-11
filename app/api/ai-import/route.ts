@@ -11,7 +11,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
 import OpenAI from 'openai';
-import pdf from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 
 export async function POST(req: NextRequest) {
   try {
@@ -114,9 +114,10 @@ export async function POST(req: NextRequest) {
     if (fileName.endsWith('.pdf')) {
       console.log('Parsing PDF file...');
       try {
-        const pdfData = await pdf(buffer);
+        const parser = new PDFParse();
+        const pdfData = await parser.parse(buffer);
         fileContent = pdfData.text;
-        console.log(`PDF parsed: ${pdfData.numpages} pages, ${fileContent.length} characters`);
+        console.log(`PDF parsed: ${pdfData.pages.length} pages, ${fileContent.length} characters`);
       } catch (pdfError: any) {
         console.error('PDF parsing error:', pdfError);
         return NextResponse.json(
