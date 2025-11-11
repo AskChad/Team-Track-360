@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 interface Team {
   id: string;
@@ -356,9 +357,12 @@ export default function TeamDetailPage() {
                     >
                       Delete
                     </button>
-                    <button className="btn-primary">
+                    <Link
+                      href={`/athletes?team_id=${teamId}&create=true`}
+                      className="btn-primary"
+                    >
                       + Add Member
-                    </button>
+                    </Link>
                   </>
                 ) : (
                   <button
@@ -608,7 +612,12 @@ export default function TeamDetailPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Team Roster</h2>
-                <button className="btn-primary">+ Add Member</button>
+                <Link
+                  href={`/athletes?team_id=${teamId}&create=true`}
+                  className="btn-primary"
+                >
+                  + Add Member
+                </Link>
               </div>
 
               {members.length === 0 ? (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Team {
@@ -35,6 +35,7 @@ interface User {
 
 export default function TeamsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +77,20 @@ export default function TeamsPage() {
       }
     }
   }, [sports]);
+
+  // Check for query parameters to pre-fill organization and open modal
+  useEffect(() => {
+    const orgId = searchParams.get('organization_id');
+    const createParam = searchParams.get('create');
+
+    if (orgId) {
+      setFormData(prev => ({ ...prev, organization_id: orgId }));
+    }
+
+    if (createParam === 'true') {
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
 
   const fetchTeams = async () => {
     try {

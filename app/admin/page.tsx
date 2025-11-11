@@ -78,6 +78,22 @@ interface Sport {
   name: string;
 }
 
+interface WeightClass {
+  id: string;
+  sport_id: string;
+  organization_id: string;
+  name: string;
+  weight: number;
+  age_group?: string;
+  state?: string;
+  city?: string;
+  expiration_date?: string;
+  notes?: string;
+  is_active: boolean;
+  sports?: { id: string; name: string };
+  organizations?: { id: string; name: string };
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -94,11 +110,14 @@ export default function AdminPage() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
+  const [weightClasses, setWeightClasses] = useState<WeightClass[]>([]);
 
   // Modal states
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showCompetitionModal, setShowCompetitionModal] = useState(false);
+  const [showWeightClassModal, setShowWeightClassModal] = useState(false);
+  const [editingWeightClass, setEditingWeightClass] = useState<WeightClass | null>(null);
 
   // Form states
   const [orgFormData, setOrgFormData] = useState({
@@ -138,6 +157,18 @@ export default function AdminPage() {
     recurrence_rule: '',
   });
 
+  const [weightClassFormData, setWeightClassFormData] = useState({
+    sport_id: '',
+    organization_id: '',
+    name: '',
+    weight: '',
+    age_group: '',
+    state: '',
+    city: '',
+    expiration_date: '',
+    notes: '',
+  });
+
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     const userStr = localStorage.getItem('user');
@@ -158,6 +189,7 @@ export default function AdminPage() {
 
     fetchStats(token);
     fetchSports(token);
+    fetchWeightClasses(token);
   }, []);
 
   // Set Wrestling as default sport when sports are loaded
@@ -167,6 +199,7 @@ export default function AdminPage() {
       if (wrestlingSport) {
         setOrgFormData(prev => ({ ...prev, sport_ids: prev.sport_ids.length === 0 ? [wrestlingSport.id] : prev.sport_ids }));
         setCompetitionFormData(prev => ({ ...prev, sport_id: prev.sport_id === '' ? wrestlingSport.id : prev.sport_id }));
+        setWeightClassFormData(prev => ({ ...prev, sport_id: prev.sport_id === '' ? wrestlingSport.id : prev.sport_id }));
       }
     }
   }, [sports]);
@@ -233,6 +266,20 @@ export default function AdminPage() {
       }
     } catch (err) {
       console.error('Failed to fetch sports:', err);
+    }
+  };
+
+  const fetchWeightClasses = async (token: string) => {
+    try {
+      const response = await fetch('/api/weight-classes', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setWeightClasses(data.data?.weight_classes || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch weight classes:', err);
     }
   };
 
@@ -367,6 +414,153 @@ export default function AdminPage() {
     }
   };
 
+  const handleCreateWeightClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/weight-classes', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(weightClassFormData),
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to create weight class');
+        return;
+      }
+
+      // Reset form and refresh
+      setWeightClassFormData({
+        sport_id: '',
+        organization_id: '',
+        name: '',
+        weight: '',
+        age_group: '',
+        state: '',
+        city: '',
+        expiration_date: '',
+        notes: '',
+      });
+      setShowWeightClassModal(false);
+      setEditingWeightClass(null);
+      if (token) fetchWeightClasses(token);
+    } catch (err) {
+      setError('Network error. Please try again.');
+    }
+  };
+
+  const handleEditWeightClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!editingWeightClass) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/weight-classes/${editingWeightClass.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(weightClassFormData),
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to update weight class');
+        return;
+      }
+
+      // Reset form and refresh
+      setWeightClassFormData({
+        sport_id: '',
+        organization_id: '',
+        name: '',
+        weight: '',
+        age_group: '',
+        state: '',
+        city: '',
+        expiration_date: '',
+        notes: '',
+      });
+      setShowWeightClassModal(false);
+      setEditingWeightClass(null);
+      if (token) fetchWeightClasses(token);
+    } catch (err) {
+      setError('Network error. Please try again.');
+    }
+  };
+
+  const handleCopyWeightClass = async (weightClass: WeightClass) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/weight-classes/${weightClass.id}/copy`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to copy weight class');
+        return;
+      }
+
+      if (token) fetchWeightClasses(token);
+    } catch (err) {
+      setError('Network error. Please try again.');
+    }
+  };
+
+  const handleDeleteWeightClass = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this weight class?')) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/weight-classes/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to delete weight class');
+        return;
+      }
+
+      if (token) fetchWeightClasses(token);
+    } catch (err) {
+      setError('Network error. Please try again.');
+    }
+  };
+
+  const openEditWeightClassModal = (weightClass: WeightClass) => {
+    setEditingWeightClass(weightClass);
+    setWeightClassFormData({
+      sport_id: weightClass.sport_id,
+      organization_id: weightClass.organization_id,
+      name: weightClass.name,
+      weight: weightClass.weight.toString(),
+      age_group: weightClass.age_group || '',
+      state: weightClass.state || '',
+      city: weightClass.city || '',
+      expiration_date: weightClass.expiration_date || '',
+      notes: weightClass.notes || '',
+    });
+    setShowWeightClassModal(true);
+  };
+
   const toggleSport = (sportId: string) => {
     setOrgFormData(prev => ({
       ...prev,
@@ -417,6 +611,7 @@ export default function AdminPage() {
                 { id: 'athletes', name: 'Athletes' },
                 { id: 'locations', name: 'Locations' },
                 { id: 'competitions', name: 'Competitions' },
+                { id: 'weight-classes', name: 'Weight Classes' },
                 { id: 'rosters', name: 'Rosters' },
                 { id: 'settings', name: 'Settings' },
               ].map((tab) => (
@@ -845,6 +1040,119 @@ export default function AdminPage() {
                                 >
                                   Edit
                                 </Link>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Weight Classes Tab */}
+            {activeTab === 'weight-classes' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Weight Classes</h2>
+                  <button
+                    onClick={() => {
+                      setEditingWeightClass(null);
+                      setWeightClassFormData({
+                        sport_id: '',
+                        organization_id: '',
+                        name: '',
+                        weight: '',
+                        age_group: '',
+                        state: '',
+                        city: '',
+                        expiration_date: '',
+                        notes: '',
+                      });
+                      setShowWeightClassModal(true);
+                    }}
+                    className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600"
+                  >
+                    + Create Weight Class
+                  </button>
+                </div>
+
+                {weightClasses.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">⚖️</div>
+                    <h3 className="text-xl font-bold text-gray-700 mb-2">No Weight Classes</h3>
+                    <p className="text-gray-600">Create weight classes for your sports</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Sport</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Organization</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Weight</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age Group</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">State</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Expires</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {weightClasses.map((wc) => (
+                          <tr key={wc.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {wc.sports?.name || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {wc.organizations?.name || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {wc.name}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {wc.weight} lbs
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {wc.age_group || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {wc.state || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {wc.expiration_date ? new Date(wc.expiration_date).toLocaleDateString() : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                wc.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {wc.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={() => openEditWeightClassModal(wc)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  Edit
+                                </button>
+                                <span className="text-gray-300">|</span>
+                                <button
+                                  onClick={() => handleCopyWeightClass(wc)}
+                                  className="text-green-600 hover:text-green-900"
+                                >
+                                  Copy
+                                </button>
+                                <span className="text-gray-300">|</span>
+                                <button
+                                  onClick={() => handleDeleteWeightClass(wc.id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Delete
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1436,6 +1744,187 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => setShowCompetitionModal(false)}
+                    className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Weight Class Modal */}
+      {showWeightClassModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                {editingWeightClass ? 'Edit Weight Class' : 'Create New Weight Class'}
+              </h2>
+
+              <form onSubmit={editingWeightClass ? handleEditWeightClass : handleCreateWeightClass} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Sport */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Sport *
+                    </label>
+                    <select
+                      required
+                      value={weightClassFormData.sport_id}
+                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, sport_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    >
+                      <option value="">Select sport</option>
+                      {sports.map((sport) => (
+                        <option key={sport.id} value={sport.id}>
+                          {sport.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Organization */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Organization *
+                    </label>
+                    <select
+                      required
+                      value={weightClassFormData.organization_id}
+                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, organization_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    >
+                      <option value="">Select organization</option>
+                      {organizations.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={weightClassFormData.name}
+                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, name: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      placeholder="e.g., 106 lbs, Bantamweight"
+                    />
+                  </div>
+
+                  {/* Weight */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Weight (lbs) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={weightClassFormData.weight}
+                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, weight: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      placeholder="e.g., 106.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Age Group */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Age Group
+                    </label>
+                    <input
+                      type="text"
+                      value={weightClassFormData.age_group}
+                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, age_group: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      placeholder="e.g., U15, High School"
+                    />
+                  </div>
+
+                  {/* State */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      State
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={2}
+                      value={weightClassFormData.state}
+                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, state: e.target.value.toUpperCase() })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      placeholder="e.g., CA, TX"
+                    />
+                  </div>
+
+                  {/* City */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={weightClassFormData.city}
+                      onChange={(e) => setWeightClassFormData({ ...weightClassFormData, city: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      placeholder="e.g., Los Angeles"
+                    />
+                  </div>
+                </div>
+
+                {/* Expiration Date */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Expiration Date
+                  </label>
+                  <input
+                    type="date"
+                    value={weightClassFormData.expiration_date}
+                    onChange={(e) => setWeightClassFormData({ ...weightClassFormData, expiration_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={weightClassFormData.notes}
+                    onChange={(e) => setWeightClassFormData({ ...weightClassFormData, notes: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    rows={3}
+                    placeholder="Additional information about this weight class..."
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-wrestling-blue text-white py-3 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    {editingWeightClass ? 'Update Weight Class' : 'Create Weight Class'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWeightClassModal(false);
+                      setEditingWeightClass(null);
+                    }}
                     className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300"
                   >
                     Cancel

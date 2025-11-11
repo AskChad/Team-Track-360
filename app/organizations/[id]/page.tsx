@@ -462,9 +462,17 @@ export default function OrganizationDetailPage({ params }: { params: { id: strin
 
             {/* Teams */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Teams ({teams.length})
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Teams ({teams.length})
+                </h2>
+                <Link
+                  href={`/teams?organization_id=${params.id}&create=true`}
+                  className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 text-sm"
+                >
+                  + Create Team
+                </Link>
+              </div>
 
               {teams.length === 0 ? (
                 <p className="text-gray-600">No teams found for this organization</p>

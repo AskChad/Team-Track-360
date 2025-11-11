@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Athlete {
@@ -37,6 +37,7 @@ interface User {
 
 export default function AthletesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -76,6 +77,20 @@ export default function AthletesPage() {
     fetchAthletes();
     fetchTeams();
   }, []);
+
+  // Check for query parameters to pre-fill team and open modal
+  useEffect(() => {
+    const teamId = searchParams.get('team_id');
+    const createParam = searchParams.get('create');
+
+    if (teamId) {
+      setFormData(prev => ({ ...prev, team_id: teamId }));
+    }
+
+    if (createParam === 'true') {
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
 
   const fetchAthletes = async () => {
     try {
