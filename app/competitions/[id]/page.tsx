@@ -99,7 +99,7 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
       });
       const data = await response.json();
       if (data.success) {
-        setOrganizations(data.data || []);
+        setOrganizations(data.data.organizations || []);
       }
     } catch (err) {
       console.error('Failed to load organizations');
