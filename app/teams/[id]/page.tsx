@@ -233,22 +233,28 @@ export default function TeamDetailPage() {
         {/* Team Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
           <div
-            className="h-32 flex items-center justify-center"
-            style={{ backgroundColor: team.primary_color || '#3B82F6' }}
+            className="h-32 flex items-center justify-center relative"
+            style={{
+              background: `linear-gradient(135deg, ${team.primary_color || '#3B82F6'} 0%, ${team.secondary_color || team.primary_color || '#6366F1'} 100%)`
+            }}
           >
-            {team.logo_url ? (
-              <img src={team.logo_url} alt={team.name} className="h-20 w-20 object-contain" />
-            ) : (
-              <div className="text-white text-4xl font-bold">
-                {team.name.charAt(0)}
+            <div className="absolute inset-0 flex items-center justify-between px-8">
+              <div className="flex items-center gap-4">
+                {team.logo_url ? (
+                  <img src={team.logo_url} alt={team.name} className="h-20 w-20 object-contain" />
+                ) : (
+                  <div className="text-white text-4xl font-bold">
+                    {team.name.charAt(0)}
+                  </div>
+                )}
+                <h1 className="text-3xl font-bold text-white">{team.name}</h1>
               </div>
-            )}
+            </div>
           </div>
 
           <div className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{team.name}</h1>
                 {team.description && (
                   <p className="text-gray-600 mb-4">{team.description}</p>
                 )}
