@@ -160,6 +160,17 @@ export default function AdminPage() {
     fetchSports(token);
   }, []);
 
+  // Set Wrestling as default sport when sports are loaded
+  useEffect(() => {
+    if (sports.length > 0) {
+      const wrestlingSport = sports.find(s => s.name.toLowerCase() === 'wrestling');
+      if (wrestlingSport) {
+        setOrgFormData(prev => ({ ...prev, sport_ids: prev.sport_ids.length === 0 ? [wrestlingSport.id] : prev.sport_ids }));
+        setCompetitionFormData(prev => ({ ...prev, sport_id: prev.sport_id === '' ? wrestlingSport.id : prev.sport_id }));
+      }
+    }
+  }, [sports]);
+
   const fetchStats = async (token: string) => {
     try {
       const [orgsRes, teamsRes, athletesRes, eventsRes, compsRes, locsRes, rostersRes, usersRes] = await Promise.all([
