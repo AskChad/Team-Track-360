@@ -98,6 +98,7 @@ export default function AdminPage() {
   // Modal states
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showCompetitionModal, setShowCompetitionModal] = useState(false);
 
   // Form states
   const [orgFormData, setOrgFormData] = useState({
@@ -124,6 +125,17 @@ export default function AdminPage() {
     capacity: '',
     phone: '',
     website_url: '',
+  });
+
+  const [competitionFormData, setCompetitionFormData] = useState({
+    organization_id: '',
+    sport_id: '',
+    name: '',
+    description: '',
+    competition_type: '',
+    default_location_id: '',
+    is_recurring: false,
+    recurrence_rule: '',
   });
 
   useEffect(() => {
@@ -305,6 +317,45 @@ export default function AdminPage() {
     }
   };
 
+  const handleCreateCompetition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/competitions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(competitionFormData),
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to create competition');
+        return;
+      }
+
+      // Reset form and refresh
+      setCompetitionFormData({
+        organization_id: '',
+        sport_id: '',
+        name: '',
+        description: '',
+        competition_type: '',
+        default_location_id: '',
+        is_recurring: false,
+        recurrence_rule: '',
+      });
+      setShowCompetitionModal(false);
+      if (token) fetchStats(token);
+    } catch (err) {
+      setError('Network error. Please try again.');
+    }
+  };
+
   const toggleSport = (sportId: string) => {
     setOrgFormData(prev => ({
       ...prev,
@@ -394,59 +445,66 @@ export default function AdminPage() {
                     <p className="text-gray-600">Create your first organization to get started</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {organizations.map((org) => (
-                      <Link
-                        key={org.id}
-                        href={`/organizations/${org.id}`}
-                        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">{org.name}</h3>
-                            {org.slug && (
-                              <p className="text-xs text-gray-500 font-mono mb-2">/{org.slug}</p>
-                            )}
-                          </div>
-                          <div className="text-3xl">🏛️</div>
-                        </div>
-
-                        {org.description && (
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{org.description}</p>
-                        )}
-
-                        {org.sports && org.sports.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {org.sports.map((sport) => (
-                              <span
-                                key={sport.id}
-                                className="inline-block px-2 py-1 text-xs font-bold rounded bg-wrestling-blue bg-opacity-10 text-wrestling-navy"
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Slug</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Sports</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Location</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Teams</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {organizations.map((org) => (
+                          <tr key={org.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{org.name}</div>
+                              {org.description && (
+                                <div className="text-xs text-gray-500 line-clamp-1">{org.description}</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-xs text-gray-500 font-mono">{org.slug || '-'}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              {org.sports && org.sports.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {org.sports.map((sport) => (
+                                    <span
+                                      key={sport.id}
+                                      className="inline-block px-2 py-1 text-xs font-bold rounded bg-wrestling-blue bg-opacity-10 text-wrestling-navy"
+                                    >
+                                      {sport.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-gray-400">-</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">
+                                {org.city || org.state ? `${org.city || ''}${org.city && org.state ? ', ' : ''}${org.state || ''}` : '-'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">{org.team_count || 0}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <Link
+                                href={`/organizations/${org.id}`}
+                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
                               >
-                                {sport.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {(org.city || org.state) && (
-                          <p className="text-sm text-gray-600 mb-2">
-                            📍 {org.city}{org.city && org.state && ', '}{org.state}
-                          </p>
-                        )}
-
-                        {org.team_count !== undefined && (
-                          <p className="text-sm text-gray-600">
-                            <span className="font-bold">Teams:</span> {org.team_count}
-                          </p>
-                        )}
-
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <span className="text-wrestling-blue font-semibold text-sm">
-                            View Details →
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
+                                View →
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -472,44 +530,55 @@ export default function AdminPage() {
                     <p className="text-gray-600">Teams will appear here once created</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {teams.map((team) => (
-                      <Link
-                        key={team.id}
-                        href={`/teams/${team.id}`}
-                        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">{team.name}</h3>
-                            {team.sport_name && (
-                              <span className="inline-block px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">
-                                {team.sport_name}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-3xl">👥</div>
-                        </div>
-
-                        {team.organization_name && (
-                          <p className="text-sm text-gray-600 mb-2">
-                            <span className="font-bold">Organization:</span> {team.organization_name}
-                          </p>
-                        )}
-
-                        {(team.city || team.state) && (
-                          <p className="text-sm text-gray-600">
-                            📍 {team.city}{team.city && team.state && ', '}{team.state}
-                          </p>
-                        )}
-
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <span className="text-wrestling-blue font-semibold text-sm">
-                            View Details →
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Team Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Sport</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Organization</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Location</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {teams.map((team) => (
+                          <tr key={team.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{team.name}</div>
+                              {team.slug && (
+                                <div className="text-xs text-gray-500 font-mono">{team.slug}</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {team.sport_name ? (
+                                <span className="inline-block px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">
+                                  {team.sport_name}
+                                </span>
+                              ) : (
+                                <div className="text-sm text-gray-400">-</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">{team.organization_name || '-'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">
+                                {team.city || team.state ? `${team.city || ''}${team.city && team.state ? ', ' : ''}${team.state || ''}` : '-'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <Link
+                                href={`/teams/${team.id}`}
+                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                              >
+                                View →
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -602,48 +671,58 @@ export default function AdminPage() {
                     <p className="text-gray-600">Add your first competition venue</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {locations.map((location) => (
-                      <Link
-                        key={location.id}
-                        href={`/locations/${location.id}`}
-                        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">{location.name}</h3>
-                            {location.venue_type && (
-                              <span className="inline-block px-2 py-1 text-xs font-bold rounded bg-wrestling-blue bg-opacity-10 text-wrestling-navy mb-2">
-                                {location.venue_type}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-3xl">📍</div>
-                        </div>
-
-                        {location.address && (
-                          <p className="text-sm text-gray-600 mb-1">{location.address}</p>
-                        )}
-
-                        {(location.city || location.state) && (
-                          <p className="text-sm text-gray-600 mb-1">
-                            {location.city}{location.city && location.state && ', '}{location.state}
-                          </p>
-                        )}
-
-                        {location.capacity && (
-                          <p className="text-sm text-gray-500 mt-2">
-                            Capacity: {location.capacity.toLocaleString()}
-                          </p>
-                        )}
-
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <span className="text-wrestling-blue font-semibold text-sm">
-                            View Details →
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Venue Type</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Address</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">City/State</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Capacity</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {locations.map((location) => (
+                          <tr key={location.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{location.name}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {location.venue_type ? (
+                                <span className="inline-block px-2 py-1 text-xs font-bold rounded bg-wrestling-blue bg-opacity-10 text-wrestling-navy">
+                                  {location.venue_type}
+                                </span>
+                              ) : (
+                                <div className="text-sm text-gray-400">-</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-600">{location.address || '-'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">
+                                {location.city || location.state ? `${location.city || ''}${location.city && location.state ? ', ' : ''}${location.state || ''}` : '-'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">
+                                {location.capacity ? location.capacity.toLocaleString() : '-'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <Link
+                                href={`/locations/${location.id}`}
+                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                              >
+                                View →
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -654,12 +733,12 @@ export default function AdminPage() {
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Competitions</h2>
-                  <Link
-                    href="/competitions"
-                    className="bg-wrestling-blue text-white px-4 py-2 rounded-lg font-bold hover:bg-wrestling-bright"
+                  <button
+                    onClick={() => setShowCompetitionModal(true)}
+                    className="bg-wrestling-teal text-white px-4 py-2 rounded-lg font-bold hover:opacity-90"
                   >
-                    View All Competitions
-                  </Link>
+                    + Create Competition
+                  </button>
                 </div>
 
                 {competitions.length === 0 ? (
@@ -669,45 +748,53 @@ export default function AdminPage() {
                     <p className="text-gray-600">Competitions will appear here once created</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {competitions.map((comp) => (
-                      <Link
-                        key={comp.id}
-                        href={`/competitions/${comp.id}`}
-                        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">{comp.name}</h3>
-                            {comp.competition_type && (
-                              <span className="inline-block px-2 py-1 text-xs font-bold rounded bg-purple-100 text-purple-800">
-                                {comp.competition_type}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-3xl">🏆</div>
-                        </div>
-
-                        {comp.start_date && (
-                          <p className="text-sm text-gray-600 mb-2">
-                            📅 {new Date(comp.start_date).toLocaleDateString()}
-                            {comp.end_date && ` - ${new Date(comp.end_date).toLocaleDateString()}`}
-                          </p>
-                        )}
-
-                        {comp.location_name && (
-                          <p className="text-sm text-gray-600">
-                            📍 {comp.location_name}
-                          </p>
-                        )}
-
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <span className="text-wrestling-blue font-semibold text-sm">
-                            View Details →
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Type</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Dates</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Location</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {competitions.map((comp) => (
+                          <tr key={comp.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{comp.name}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {comp.competition_type ? (
+                                <span className="inline-block px-2 py-1 text-xs font-bold rounded bg-purple-100 text-purple-800">
+                                  {comp.competition_type}
+                                </span>
+                              ) : (
+                                <div className="text-sm text-gray-400">-</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">
+                                {comp.start_date ? new Date(comp.start_date).toLocaleDateString() : '-'}
+                                {comp.end_date && ` - ${new Date(comp.end_date).toLocaleDateString()}`}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600">{comp.location_name || '-'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <Link
+                                href={`/competitions/${comp.id}`}
+                                className="text-wrestling-blue hover:text-wrestling-navy font-medium"
+                              >
+                                View →
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -1118,6 +1205,172 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => setShowLocationModal(false)}
+                    className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Competition Modal */}
+      {showCompetitionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Create New Competition</h2>
+                <button
+                  onClick={() => setShowCompetitionModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateCompetition} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Competition Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={competitionFormData.name}
+                    onChange={(e) => setCompetitionFormData({ ...competitionFormData, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
+                    placeholder="e.g., State Championship 2025"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Organization *
+                    </label>
+                    <select
+                      required
+                      value={competitionFormData.organization_id}
+                      onChange={(e) => setCompetitionFormData({ ...competitionFormData, organization_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
+                    >
+                      <option value="">Select organization</option>
+                      {organizations.map((org) => (
+                        <option key={org.id} value={org.id}>{org.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Sport *
+                    </label>
+                    <select
+                      required
+                      value={competitionFormData.sport_id}
+                      onChange={(e) => setCompetitionFormData({ ...competitionFormData, sport_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
+                    >
+                      <option value="">Select sport</option>
+                      {sports.map((sport) => (
+                        <option key={sport.id} value={sport.id}>{sport.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={competitionFormData.description}
+                    onChange={(e) => setCompetitionFormData({ ...competitionFormData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
+                    placeholder="Optional description"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Competition Type
+                    </label>
+                    <select
+                      value={competitionFormData.competition_type}
+                      onChange={(e) => setCompetitionFormData({ ...competitionFormData, competition_type: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
+                    >
+                      <option value="">Select type</option>
+                      <option value="tournament">Tournament</option>
+                      <option value="dual_meet">Dual Meet</option>
+                      <option value="tri_meet">Tri Meet</option>
+                      <option value="quad_meet">Quad Meet</option>
+                      <option value="invitational">Invitational</option>
+                      <option value="championship">Championship</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Default Location
+                    </label>
+                    <select
+                      value={competitionFormData.default_location_id}
+                      onChange={(e) => setCompetitionFormData({ ...competitionFormData, default_location_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
+                    >
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name} {location.city && `- ${location.city}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_recurring_admin"
+                    checked={competitionFormData.is_recurring}
+                    onChange={(e) => setCompetitionFormData({ ...competitionFormData, is_recurring: e.target.checked })}
+                    className="w-4 h-4 text-wrestling-blue rounded focus:ring-wrestling-blue"
+                  />
+                  <label htmlFor="is_recurring_admin" className="text-sm font-bold text-gray-700">
+                    This is a recurring competition
+                  </label>
+                </div>
+
+                {competitionFormData.is_recurring && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Recurrence Rule
+                    </label>
+                    <input
+                      type="text"
+                      value={competitionFormData.recurrence_rule}
+                      onChange={(e) => setCompetitionFormData({ ...competitionFormData, recurrence_rule: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue focus:border-transparent"
+                      placeholder="e.g., Weekly on Saturdays"
+                    />
+                  </div>
+                )}
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-wrestling-blue text-white py-3 rounded-lg font-bold hover:bg-wrestling-bright"
+                  >
+                    Create Competition
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompetitionModal(false)}
                     className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300"
                   >
                     Cancel
