@@ -12,9 +12,9 @@ import { requireAuth } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
 import OpenAI from 'openai';
 
-// Import PDF parser using require (pdf-parse doesn't have ESM support)
-// @ts-ignore - pdf-parse doesn't have proper TypeScript definitions
-const pdfParse = require('pdf-parse');
+// PDF text extraction (pure JavaScript, no native dependencies)
+// @ts-ignore - unpdf doesn't have TypeScript definitions
+const { extractText: extractPDFText } = require('unpdf');
 
 // RTF parser types
 // @ts-ignore - rtf-parser doesn't have TypeScript definitions
@@ -190,10 +190,19 @@ async function handleUpload(req: NextRequest) {
 
     try {
       if (fileName.endsWith('.pdf')) {
-        // Parse PDF file
-        const pdfData = await pdfParse(buffer);
-        fileContent = pdfData.text;
-        console.log(`Extracted ${fileContent.length} characters from PDF (${pdfData.numpages} pages)`);
+        // Parse PDF file - convert Buffer to Uint8Array
+        const uint8Array = new Uint8Array(buffer);
+        const pdfData = await extractPDFText(uint8Array, { mergePages: true });
+        fileContent = pdfData.text || '';
+        console.log(`Extracted ${fileContent.length} characters from PDF (${pdfData.totalPages} pages)`);
+
+        // Warn if PDF appears to be image-based (no text extracted)
+        if (fileContent.trim().length === 0) {
+          return NextResponse.json(
+            { success: false, error: 'PDF appears to be image-based (scanned document) with no extractable text. Please provide a text-based PDF or convert the PDF to text format first. You can use online tools or Adobe Acrobat to perform OCR on the PDF.' },
+            { status: 400 }
+          );
+        }
       } else if (fileName.endsWith('.rtf')) {
         // Parse RTF file
         const rtfContent = buffer.toString('utf-8');
