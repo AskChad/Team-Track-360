@@ -190,17 +190,75 @@ async function handleUpload(req: NextRequest) {
 
     try {
       if (fileName.endsWith('.pdf')) {
-        // Parse PDF file - convert Buffer to Uint8Array
-        const uint8Array = new Uint8Array(buffer);
-        const pdfData = await extractPDFText(uint8Array, { mergePages: true });
-        fileContent = pdfData.text || '';
-        console.log(`Extracted ${fileContent.length} characters from PDF (${pdfData.totalPages} pages)`);
+        // For PDFs, upload to storage and send to Make.com webhook for processing
+        console.log(`Uploading PDF to storage for external processing...`);
 
-        // Warn if PDF appears to be image-based (no text extracted)
-        if (fileContent.trim().length === 0) {
+        // Create unique filename with timestamp
+        const timestamp = Date.now();
+        const uniqueFileName = `ai-imports/${organizationId}/${timestamp}-${file.name}`;
+
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+          .from('temp-uploads')
+          .upload(uniqueFileName, buffer, {
+            contentType: 'application/pdf',
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError);
           return NextResponse.json(
-            { success: false, error: 'PDF appears to be image-based (scanned document) with no extractable text. Please provide a text-based PDF or convert the PDF to text format first. You can use online tools or Adobe Acrobat to perform OCR on the PDF.' },
-            { status: 400 }
+            { success: false, error: `Failed to upload PDF: ${uploadError.message}` },
+            { status: 500 }
+          );
+        }
+
+        // Get public URL
+        const { data: urlData } = supabaseAdmin.storage
+          .from('temp-uploads')
+          .getPublicUrl(uniqueFileName);
+
+        const publicUrl = urlData.publicUrl;
+        console.log(`PDF uploaded to: ${publicUrl}`);
+
+        // Send to Make.com webhook
+        try {
+          const webhookUrl = 'https://hook.us1.make.com/d77nbvtmp1y5fwrjvn4yt7985cthtxo1';
+          const webhookResponse = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              fileUrl: publicUrl,
+              fileName: file.name,
+              organizationId: organizationId,
+              entityType: entityType,
+              timestamp: timestamp,
+              fileSize: file.size
+            })
+          });
+
+          if (!webhookResponse.ok) {
+            throw new Error(`Webhook returned status ${webhookResponse.status}`);
+          }
+
+          console.log('PDF sent to Make.com webhook successfully');
+
+          return NextResponse.json({
+            success: true,
+            message: 'PDF uploaded and sent for processing. The data will be imported once processing is complete.',
+            data: {
+              fileUrl: publicUrl,
+              status: 'processing'
+            }
+          });
+        } catch (webhookError: any) {
+          console.error('Webhook error:', webhookError);
+          return NextResponse.json(
+            { success: false, error: `Failed to send PDF to processing service: ${webhookError.message}` },
+            { status: 500 }
           );
         }
       } else if (fileName.endsWith('.rtf')) {
