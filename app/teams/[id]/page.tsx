@@ -10,6 +10,7 @@ interface Team {
   description?: string;
   team_type?: string;
   logo_url?: string;
+  header_image_url?: string;
   primary_color?: string;
   secondary_color?: string;
   organization_id?: string;
@@ -64,6 +65,9 @@ export default function TeamDetailPage() {
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Team>>({});
+  const [uploading, setUploading] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [headerFile, setHeaderFile] = useState<File | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -145,17 +149,63 @@ export default function TeamDetailPage() {
     }
   };
 
+  const uploadImage = async (file: File, type: 'logo' | 'header'): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', type);
+      formData.append('teamId', teamId);
+
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        return data.url;
+      }
+      return null;
+    } catch (err) {
+      console.error('Upload error:', err);
+      return null;
+    }
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploading(true);
     try {
       const token = localStorage.getItem('auth_token');
+      let updatedFormData = { ...formData };
+
+      // Upload logo if new file selected
+      if (logoFile) {
+        const logoUrl = await uploadImage(logoFile, 'logo');
+        if (logoUrl) {
+          updatedFormData.logo_url = logoUrl;
+        }
+      }
+
+      // Upload header image if new file selected
+      if (headerFile) {
+        const headerUrl = await uploadImage(headerFile, 'header');
+        if (headerUrl) {
+          updatedFormData.header_image_url = headerUrl;
+        }
+      }
+
       const response = await fetch(`/api/teams/${teamId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(updatedFormData),
       });
 
       const data = await response.json();
@@ -164,11 +214,15 @@ export default function TeamDetailPage() {
         setFormData(data.data.team);
         setIsEditing(false);
         setError('');
+        setLogoFile(null);
+        setHeaderFile(null);
       } else {
         setError(data.error);
       }
     } catch (err) {
       setError('Failed to update team');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -232,21 +286,32 @@ export default function TeamDetailPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Team Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
-          <div
-            className="h-32 flex items-center justify-center relative"
-            style={{
-              background: `linear-gradient(135deg, ${team.primary_color || '#3B82F6'} 0%, ${team.secondary_color || team.primary_color || '#6366F1'} 100%)`
-            }}
-          >
-            <div className="absolute inset-0 flex items-center justify-between px-8">
-              <div className="flex items-center gap-4">
-                {team.logo_url && (
-                  <img src={team.logo_url} alt={team.name} className="h-20 w-20 object-contain" />
-                )}
-                <h1 className="text-3xl font-bold text-white">{team.name}</h1>
+          {team.header_image_url ? (
+            <div
+              className="h-32 relative bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${team.header_image_url})`
+              }}
+            >
+              <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+            </div>
+          ) : (
+            <div
+              className="h-32 flex items-center justify-center relative"
+              style={{
+                background: `linear-gradient(135deg, ${team.primary_color || '#3B82F6'} 0%, ${team.secondary_color || team.primary_color || '#6366F1'} 100%)`
+              }}
+            >
+              <div className="absolute inset-0 flex items-center justify-between px-8">
+                <div className="flex items-center gap-4">
+                  {team.logo_url && (
+                    <img src={team.logo_url} alt={team.name} className="h-20 w-20 object-contain" />
+                  )}
+                  <h1 className="text-3xl font-bold text-white">{team.name}</h1>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="p-6">
             <div className="flex items-start justify-between">
@@ -408,35 +473,57 @@ export default function TeamDetailPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Type</label>
+                  <select
+                    value={formData.team_type || ''}
+                    onChange={(e) => setFormData({ ...formData, team_type: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select type</option>
+                    <option value="varsity">Varsity</option>
+                    <option value="jv">JV</option>
+                    <option value="freshman">Freshman</option>
+                    <option value="club">Club</option>
+                    <option value="recreational">Recreational</option>
+                    <option value="competitive">Competitive</option>
+                    <option value="youth">Youth</option>
+                    <option value="adult">Adult</option>
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Team Type</label>
-                    <select
-                      value={formData.team_type || ''}
-                      onChange={(e) => setFormData({ ...formData, team_type: e.target.value })}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Team Logo</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select type</option>
-                      <option value="varsity">Varsity</option>
-                      <option value="jv">JV</option>
-                      <option value="freshman">Freshman</option>
-                      <option value="club">Club</option>
-                      <option value="recreational">Recreational</option>
-                      <option value="competitive">Competitive</option>
-                      <option value="youth">Youth</option>
-                      <option value="adult">Adult</option>
-                    </select>
+                    />
+                    {team.logo_url && !logoFile && (
+                      <p className="text-xs text-gray-500 mt-1">Current logo set</p>
+                    )}
+                    {logoFile && (
+                      <p className="text-xs text-green-600 mt-1">New logo selected: {logoFile.name}</p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Header Image</label>
                     <input
-                      type="url"
-                      value={formData.logo_url || ''}
-                      onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://example.com/logo.png"
                     />
+                    {team.header_image_url && !headerFile && (
+                      <p className="text-xs text-gray-500 mt-1">Current header set</p>
+                    )}
+                    {headerFile && (
+                      <p className="text-xs text-green-600 mt-1">New header selected: {headerFile.name}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Replaces team name and gradient when uploaded</p>
                   </div>
                 </div>
 
@@ -465,13 +552,19 @@ export default function TeamDetailPage() {
                 <div className="flex gap-4 pt-4">
                   <button
                     type="submit"
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
+                    disabled={uploading}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save Changes
+                    {uploading ? 'Uploading...' : 'Save Changes'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setIsEditing(false); setError(''); }}
+                    onClick={() => {
+                      setIsEditing(false);
+                      setError('');
+                      setLogoFile(null);
+                      setHeaderFile(null);
+                    }}
                     className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300"
                   >
                     Cancel
