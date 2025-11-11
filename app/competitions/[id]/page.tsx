@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Competition {
@@ -49,13 +49,14 @@ interface Location {
 
 export default function CompetitionDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
   const [formData, setFormData] = useState<Partial<Competition>>({});
 
   useEffect(() => {

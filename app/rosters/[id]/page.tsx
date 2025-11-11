@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Roster {
@@ -63,11 +63,12 @@ const WEIGHT_CLASSES = [
 
 export default function RosterDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [roster, setRoster] = useState<Roster | null>(null);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [formData, setFormData] = useState<Partial<Roster>>({});
   const [memberFormData, setMemberFormData] = useState({

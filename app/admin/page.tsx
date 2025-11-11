@@ -514,7 +514,7 @@ export default function AdminPage() {
                                 </Link>
                                 <span className="text-gray-300">|</span>
                                 <Link
-                                  href={`/organizations/${org.id}`}
+                                  href={`/organizations/${org.id}?edit=true`}
                                   className="text-green-600 hover:text-green-700 font-medium"
                                 >
                                   Edit
@@ -597,7 +597,7 @@ export default function AdminPage() {
                                 </Link>
                                 <span className="text-gray-300">|</span>
                                 <Link
-                                  href={`/teams/${team.id}`}
+                                  href={`/teams/${team.id}?edit=true`}
                                   className="text-green-600 hover:text-green-700 font-medium"
                                 >
                                   Edit
@@ -673,7 +673,7 @@ export default function AdminPage() {
                                 </Link>
                                 <span className="text-gray-300">|</span>
                                 <Link
-                                  href={`/athletes/${athlete.id}`}
+                                  href={`/athletes/${athlete.id}?edit=true`}
                                   className="text-green-600 hover:text-green-700 font-medium"
                                 >
                                   Edit
@@ -759,7 +759,7 @@ export default function AdminPage() {
                                 </Link>
                                 <span className="text-gray-300">|</span>
                                 <Link
-                                  href={`/locations/${location.id}`}
+                                  href={`/locations/${location.id}?edit=true`}
                                   className="text-green-600 hover:text-green-700 font-medium"
                                 >
                                   Edit
@@ -840,7 +840,7 @@ export default function AdminPage() {
                                 </Link>
                                 <span className="text-gray-300">|</span>
                                 <Link
-                                  href={`/competitions/${comp.id}`}
+                                  href={`/competitions/${comp.id}?edit=true`}
                                   className="text-green-600 hover:text-green-700 font-medium"
                                 >
                                   Edit
@@ -914,7 +914,7 @@ export default function AdminPage() {
                                 </Link>
                                 <span className="text-gray-300">|</span>
                                 <Link
-                                  href={`/rosters/${roster.id}`}
+                                  href={`/rosters/${roster.id}?edit=true`}
                                   className="text-green-600 hover:text-green-700 font-medium"
                                 >
                                   Edit

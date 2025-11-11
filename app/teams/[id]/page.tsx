@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 
 interface Team {
   id: string;
@@ -54,6 +54,7 @@ interface Member {
 export default function TeamDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const teamId = params.id as string;
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -63,7 +64,7 @@ export default function TeamDetailPage() {
   const [sports, setSports] = useState<Sport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
   const [formData, setFormData] = useState<Partial<Team>>({});
   const [uploading, setUploading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
