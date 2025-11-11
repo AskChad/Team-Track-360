@@ -219,16 +219,17 @@ async function handleUpload(req: NextRequest) {
     const schema = schemas[entityType as keyof typeof schemas];
 
     // Chunk the file content if it's too large
-    const contentChunks = chunkText(fileContent, 80000); // Reduced from 100k for faster processing
+    const contentChunks = chunkText(fileContent, 50000); // Smaller chunks for faster processing (50k tokens = ~200k chars)
     const estimatedTokens = estimateTokens(fileContent);
 
     console.log(`Processing file: ${file.name}, Estimated tokens: ${estimatedTokens}, Chunks: ${contentChunks.length}`);
 
-    // Limit to first 2 chunks to prevent timeout (can process ~160k tokens safely in 60 seconds)
-    const chunksToProcess = contentChunks.slice(0, 2);
+    // Limit to first 1 chunk to prevent timeout (can process ~80k tokens safely in 60 seconds)
+    // OpenAI API calls are slow - even 1 chunk can take 15-20 seconds
+    const chunksToProcess = contentChunks.slice(0, 1);
 
-    if (contentChunks.length > 2) {
-      console.warn(`File has ${contentChunks.length} chunks but limiting to first 2 to prevent timeout`);
+    if (contentChunks.length > 1) {
+      console.warn(`File has ${contentChunks.length} chunks but limiting to first 1 to prevent timeout. Upload smaller files or split your data.`);
     }
 
     // Process each chunk and collect all records
