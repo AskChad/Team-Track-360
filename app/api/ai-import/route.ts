@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     // Get organization's OpenAI API key
     const { data: org, error: orgError } = await supabaseAdmin
-      .from('organizations')
+      .from('parent_organizations')
       .select('openai_api_key_encrypted')
       .eq('id', organizationId)
       .single();

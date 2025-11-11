@@ -45,7 +45,7 @@ export async function GET(
 
     // Get organization's OpenAI key status
     const { data: org, error: orgError } = await supabaseAdmin
-      .from('organizations')
+      .from('parent_organizations')
       .select('openai_api_key_encrypted, openai_api_key_updated_at')
       .eq('id', params.id)
       .single();
@@ -128,7 +128,7 @@ export async function POST(
 
     // Save to database
     const { error: updateError } = await supabaseAdmin
-      .from('organizations')
+      .from('parent_organizations')
       .update({
         openai_api_key_encrypted: encryptedKey,
         openai_api_key_updated_at: new Date().toISOString()
@@ -190,7 +190,7 @@ export async function DELETE(
 
     // Remove the API key
     const { error: updateError } = await supabaseAdmin
-      .from('organizations')
+      .from('parent_organizations')
       .update({
         openai_api_key_encrypted: null,
         openai_api_key_updated_at: null
