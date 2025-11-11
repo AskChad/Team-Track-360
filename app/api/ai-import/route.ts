@@ -11,7 +11,6 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
 import OpenAI from 'openai';
-import { PDFParse } from 'pdf-parse';
 
 // Extend timeout for large file processing (max 60 seconds)
 export const maxDuration = 60;
@@ -132,32 +131,29 @@ async function handleUpload(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Parse file content based on file type
-    let fileContent: string;
+    // Parse file content - only text-based files supported
+    // For PDF support, please convert to TXT first
     const fileName = file.name.toLowerCase();
 
-    if (fileName.endsWith('.pdf')) {
-      console.log(`Parsing PDF file (${Math.round(file.size / 1024)}KB)...`);
-      try {
-        const parser = new PDFParse({ data: buffer });
-        const textResult = await parser.getText();
-        fileContent = textResult.text;
-        console.log(`PDF parsed: ${textResult.total} pages, ${fileContent.length} characters`);
+    // Validate file type
+    const supportedExtensions = ['.txt', '.csv', '.json', '.tsv'];
+    const isSupported = supportedExtensions.some(ext => fileName.endsWith(ext));
 
-        // Warn if file is very large
-        if (fileContent.length > 500000) {
-          console.warn(`Large file detected: ${fileContent.length} characters - may take 30-60 seconds to process`);
-        }
-      } catch (pdfError: any) {
-        console.error('PDF parsing error:', pdfError);
-        return NextResponse.json(
-          { success: false, error: `Failed to parse PDF: ${pdfError.message}` },
-          { status: 400 }
-        );
-      }
-    } else {
-      // For text files (CSV, JSON, TXT, etc.)
-      fileContent = buffer.toString('utf-8');
+    if (!isSupported) {
+      return NextResponse.json(
+        { success: false, error: `Unsupported file type. Please upload a text-based file: ${supportedExtensions.join(', ')}. For PDF files, please convert to TXT format first.` },
+        { status: 400 }
+      );
+    }
+
+    // Read text content
+    const fileContent = buffer.toString('utf-8');
+
+    console.log(`Processing ${file.name} (${Math.round(file.size / 1024)}KB, ${fileContent.length} characters)...`);
+
+    // Warn if file is very large
+    if (fileContent.length > 500000) {
+      console.warn(`Large file detected: ${fileContent.length} characters - may take 30-60 seconds to process`);
     }
 
     // Function to estimate tokens (rough estimate: 1 token ≈ 4 characters)

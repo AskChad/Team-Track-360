@@ -1691,13 +1691,13 @@ export default function AdminPage() {
                   <input
                     type="file"
                     required
-                    accept=".txt,.csv,.json,.pdf,.doc,.docx"
+                    accept=".txt,.csv,.json,.tsv"
                     onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                     disabled={uploadLoading}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: TXT, CSV, JSON, PDF, DOC, DOCX
+                    Supported formats: TXT, CSV, JSON, TSV (text-based files only)
                   </p>
                 </div>
 
