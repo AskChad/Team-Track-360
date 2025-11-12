@@ -10,9 +10,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
-// Extend timeout for OCR processing (~103 seconds)
-// Vercel Pro plan allows up to 300 seconds
-export const maxDuration = 180;
+// Set timeout to max for Pro plan (60 seconds)
+// OCR takes ~103 seconds, so we use fetch timeout + async callback
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   // Wrap everything to ensure we always return valid JSON
@@ -149,23 +149,52 @@ async function handleUpload(req: NextRequest) {
       const publicUrl = urlData.publicUrl;
       console.log(`Image uploaded to: ${publicUrl}`);
 
-      // Send to Make.com webhook
+      // Send to Make.com webhook with timeout
       const webhookUrl = 'https://hook.us1.make.com/d77nbvtmp1y5fwrjvn4yt7985cthtxo1';
-      const webhookResponse = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileUrl: publicUrl,
-          fileName: file.name,
-          filePath: uniqueFileName,
-          organizationId: organizationId,
-          entityType: entityType,
-          timestamp: timestamp,
-          fileSize: file.size
-        })
-      });
+
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 second timeout (within Vercel limits)
+
+      let webhookResponse;
+      try {
+        webhookResponse = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileUrl: publicUrl,
+            fileName: file.name,
+            filePath: uniqueFileName,
+            organizationId: organizationId,
+            entityType: entityType,
+            timestamp: timestamp,
+            fileSize: file.size
+          }),
+          signal: controller.signal
+        });
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          // Webhook timed out - return success but indicate async processing
+          console.log('Webhook timed out, processing will continue asynchronously');
+          return NextResponse.json({
+            success: true,
+            message: 'Image uploaded successfully. Processing in background (1-2 minutes). Data will appear automatically when complete.',
+            data: {
+              fileUrl: publicUrl,
+              status: 'processing',
+              mode: 'async',
+              estimatedTime: '1-2 minutes',
+              note: 'OCR processing takes longer than web timeout. Data will be inserted when processing completes.'
+            }
+          });
+        }
+        throw fetchError;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!webhookResponse.ok) {
         const errorText = await webhookResponse.text();
