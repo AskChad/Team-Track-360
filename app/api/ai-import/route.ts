@@ -451,21 +451,9 @@ async function handleUpload(req: NextRequest) {
         console.log(`Successfully inserted ${insertedCount} competitions and ${eventsCreated} events`);
       }
 
-      // Clean up: Delete the uploaded file from storage
-      try {
-        const { error: deleteError } = await supabaseAdmin.storage
-          .from('temp-uploads')
-          .remove([uniqueFileName]);
-
-        if (deleteError) {
-          console.error('Error deleting uploaded file:', deleteError);
-        } else {
-          console.log(`Deleted uploaded file: ${uniqueFileName}`);
-        }
-      } catch (deleteErr) {
-        console.error('Failed to delete file:', deleteErr);
-        // Don't fail the request if cleanup fails
-      }
+      // NOTE: File cleanup happens in the callback endpoint (ai-import-callback)
+      // Don't delete here - Make.com needs time to download the file first!
+      console.log(`File will be deleted by callback endpoint: ${uniqueFileName}`);
 
       return NextResponse.json({
         success: true,
