@@ -601,14 +601,48 @@ export default function AdminPage() {
       setUploadResult(data);
 
       if (data.success) {
-        // Wait 2 seconds then refresh data
-        setTimeout(() => {
-          if (token) fetchStats(token);
-          setShowCompetitionUploadModal(false);
-          setUploadFile(null);
-          setUploadOrgId('');
-          setUploadResult(null);
-        }, 2000);
+        // Check if processing asynchronously (Make.com callback mode)
+        const isAsync = data.data?.status === 'processing' || data.data?.mode === 'async';
+
+        if (isAsync) {
+          // Poll for updates every 15 seconds for up to 3 minutes
+          let pollCount = 0;
+          const maxPolls = 12; // 12 * 15s = 3 minutes
+
+          const pollInterval = setInterval(() => {
+            pollCount++;
+            if (token) {
+              fetchStats(token);
+              console.log(`Polling for new competitions... (${pollCount}/${maxPolls})`);
+            }
+
+            if (pollCount >= maxPolls) {
+              clearInterval(pollInterval);
+              // Update message to indicate processing complete
+              setUploadResult({
+                success: true,
+                message: 'Processing complete. Please refresh if you don\'t see new competitions.',
+                data: data.data
+              });
+            }
+          }, 15000); // Every 15 seconds
+
+          // Update message to show polling status
+          setUploadResult({
+            success: true,
+            message: 'Image uploaded! Processing with AI (1-2 minutes). List will update automatically...',
+            data: data.data
+          });
+        } else {
+          // Synchronous response - data already inserted
+          setTimeout(() => {
+            if (token) fetchStats(token);
+            setShowCompetitionUploadModal(false);
+            setUploadFile(null);
+            setUploadOrgId('');
+            setUploadResult(null);
+          }, 2000);
+        }
       }
     } catch (err: any) {
       console.error('Upload error:', err);
