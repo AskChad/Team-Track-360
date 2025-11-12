@@ -398,7 +398,7 @@ export default function CompetitionsPage() {
             <div className="p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Competitions via AI</h2>
               <p className="text-gray-600 text-sm mb-6">
-                Upload a file containing competition data. AI will automatically parse and import the data.
+                Upload an image file containing competition data (schedule, flyer, etc.). Our AI will automatically extract and import the data.
               </p>
 
               <form onSubmit={handleUpload} className="space-y-4">
@@ -430,13 +430,16 @@ export default function CompetitionsPage() {
                   <input
                     type="file"
                     required
-                    accept=".txt,.csv,.json,.tsv,.pdf,.rtf"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff"
                     onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                     disabled={uploadLoading}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: TXT, CSV, JSON, TSV, PDF, RTF
+                    Supported formats: JPG, PNG, GIF, WebP, BMP, TIFF
+                  </p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    <strong>Have a PDF?</strong> Export it as JPG/PNG first. Most PDF viewers have "Export as Image" or "Save as JPG" options.
                   </p>
                 </div>
 
@@ -457,10 +460,11 @@ export default function CompetitionsPage() {
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h3 className="font-bold text-sm text-purple-900 mb-2">AI Smart Import Features:</h3>
                   <ul className="text-xs text-purple-800 space-y-1">
-                    <li>• Automatically creates locations if address data is found</li>
-                    <li>• Automatically creates events if date/time data is found</li>
-                    <li>• Unmapped data is saved to notes field</li>
-                    <li>• Flexible field name matching</li>
+                    <li>• OCR text extraction from images</li>
+                    <li>• Automatically creates locations from venue data</li>
+                    <li>• Automatically creates events from date/time information</li>
+                    <li>• Handles schedules, flyers, and tournament brackets</li>
+                    <li>• Extracts contact information and registration details</li>
                   </ul>
                 </div>
 
