@@ -10,6 +10,13 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // DETAILED LOGGING - Log entire payload
+    console.log('=== CALLBACK RECEIVED FROM MAKE.COM ===');
+    console.log('Full body:', JSON.stringify(body, null, 2));
+    console.log('Body keys:', Object.keys(body));
+    console.log('===================================');
+
     const { organizationId, entityType, data: webhookData, filePath } = body;
 
     console.log('Received callback from Make.com:', { organizationId, entityType, items: webhookData?.length, filePath });
