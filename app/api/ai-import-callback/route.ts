@@ -127,58 +127,92 @@ export async function POST(req: NextRequest) {
 
       for (const item of normalizedData) {
         try {
-          // Create location if venue details provided
+          // Find or create location if venue details provided
           let locationId = null;
           if (item.venue_name || item.address) {
-            const { data: location, error: locationError } = await supabaseAdmin
+            // Check if location already exists
+            const { data: existingLocation } = await supabaseAdmin
               .from('locations')
+              .select('id')
+              .eq('name', item.venue_name || 'Unknown Venue')
+              .eq('city', item.city || '')
+              .eq('state', item.state || '')
+              .limit(1)
+              .single();
+
+            if (existingLocation) {
+              console.log(`Location already exists: ${item.venue_name}`);
+              locationId = existingLocation.id;
+            } else {
+              // Create new location
+              const { data: location, error: locationError } = await supabaseAdmin
+                .from('locations')
+                .insert({
+                  name: item.venue_name || 'Unknown Venue',
+                  address: item.address,
+                  city: item.city,
+                  state: item.state,
+                  zip: item.zip,
+                  phone: item.contact_phone
+                })
+                .select('id')
+                .single();
+
+              if (!locationError && location) {
+                locationId = location.id;
+                console.log(`Created new location: ${item.venue_name}`);
+              } else if (locationError) {
+                console.error('Location insert error:', locationError);
+              }
+            }
+          }
+
+          // Check if competition already exists (by name and date)
+          // Note: Competitions are publicly visible to all organizations via RLS policy
+          let competitionId = null;
+          const { data: existingComp } = await supabaseAdmin
+            .from('competitions')
+            .select('id')
+            .eq('name', item.name || 'Unnamed Competition')
+            .eq('sport_id', sportId)
+            .limit(1)
+            .single();
+
+          if (existingComp) {
+            console.log(`Competition already exists: ${item.name}`);
+            competitionId = existingComp.id;
+          } else {
+            // Insert new competition
+            const { data: competition, error: compError } = await supabaseAdmin
+              .from('competitions')
               .insert({
-                name: item.venue_name || 'Unknown Venue',
-                address: item.address,
-                city: item.city,
-                state: item.state,
-                zip: item.zip,
-                phone: item.contact_phone
+                organization_id: organizationId,
+                sport_id: sportId,
+                name: item.name || 'Unnamed Competition',
+                description: [
+                  item.style && `Style: ${item.style}`,
+                  item.registration_weigh_in_time && `Registration/Weigh-in: ${item.registration_weigh_in_time}`
+                ].filter(Boolean).join('\n'),
+                competition_type: 'tournament',
+                default_location_id: locationId,
+                divisions: item.divisions,
+                contact_first_name: item.contact_first_name,
+                contact_last_name: item.contact_last_name,
+                contact_email: item.contact_email,
+                contact_phone: item.contact_phone
               })
               .select('id')
               .single();
 
-            if (!locationError && location) {
-              locationId = location.id;
-            } else if (locationError) {
-              console.error('Location insert error:', locationError);
+            if (compError) {
+              console.error('Error inserting competition:', compError);
+              continue;
             }
+
+            insertedCount++;
+            competitionId = competition.id;
+            console.log(`Created new competition: ${item.name}`);
           }
-
-          // Insert competition
-          const { data: competition, error: compError } = await supabaseAdmin
-            .from('competitions')
-            .insert({
-              organization_id: organizationId,
-              sport_id: sportId,
-              name: item.name || 'Unnamed Competition',
-              description: [
-                item.style && `Style: ${item.style}`,
-                item.registration_weigh_in_time && `Registration/Weigh-in: ${item.registration_weigh_in_time}`
-              ].filter(Boolean).join('\n'),
-              competition_type: 'tournament',
-              default_location_id: locationId,
-              divisions: item.divisions,
-              contact_first_name: item.contact_first_name,
-              contact_last_name: item.contact_last_name,
-              contact_email: item.contact_email,
-              contact_phone: item.contact_phone
-            })
-            .select('id')
-            .single();
-
-          if (compError) {
-            console.error('Error inserting competition:', compError);
-            continue;
-          }
-
-          insertedCount++;
-          const competitionId = competition.id;
 
           // Create events for each team
           if (item.date && competitionId) {
@@ -226,27 +260,42 @@ export async function POST(req: NextRequest) {
                     }
                   }
 
-                  // Create event
-                  const { error: eventError } = await supabaseAdmin
+                  // Check if event already exists for this team and competition
+                  const { data: existingEvent } = await supabaseAdmin
                     .from('events')
-                    .insert({
-                      competition_id: competitionId,
-                      team_id: team.id,
-                      season_id: season.id,
-                      name: item.name || 'Unnamed Competition',
-                      description: item.style ? `${item.style} Tournament` : 'Tournament',
-                      event_type_id: eventType?.id,
-                      event_date: item.date,
-                      location_id: locationId,
-                      weigh_in_time: weighInTime,
-                      is_public: true,
-                      status: 'scheduled'
-                    });
+                    .select('id')
+                    .eq('competition_id', competitionId)
+                    .eq('team_id', team.id)
+                    .eq('event_date', item.date)
+                    .limit(1)
+                    .single();
 
-                  if (!eventError) {
-                    eventsCreated++;
+                  if (existingEvent) {
+                    console.log(`Event already exists for team ${team.name} on ${item.date}`);
                   } else {
-                    console.error('Error creating event for team:', team.name, eventError);
+                    // Create new event
+                    const { error: eventError } = await supabaseAdmin
+                      .from('events')
+                      .insert({
+                        competition_id: competitionId,
+                        team_id: team.id,
+                        season_id: season.id,
+                        name: item.name || 'Unnamed Competition',
+                        description: item.style ? `${item.style} Tournament` : 'Tournament',
+                        event_type_id: eventType?.id,
+                        event_date: item.date,
+                        location_id: locationId,
+                        weigh_in_time: weighInTime,
+                        is_public: true,
+                        status: 'scheduled'
+                      });
+
+                    if (!eventError) {
+                      eventsCreated++;
+                      console.log(`Created event for team ${team.name} on ${item.date}`);
+                    } else {
+                      console.error('Error creating event for team:', team.name, eventError);
+                    }
                   }
                 }
               } catch (teamError: any) {
