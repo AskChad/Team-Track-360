@@ -35,7 +35,29 @@ async function createBucket() {
     const { data, error } = await supabase.storage.createBucket('temp-uploads', {
       public: true,
       fileSizeLimit: 10485760, // 10MB
-      allowedMimeTypes: ['application/pdf', 'text/plain', 'text/csv', 'application/json', 'application/rtf']
+      allowedMimeTypes: [
+        // PDF
+        'application/pdf',
+        // Text files
+        'text/plain',
+        'text/csv',
+        'text/rtf',
+        'application/rtf',
+        'text/markdown',
+        'text/x-markdown',
+        // JSON
+        'application/json',
+        // Images - all common formats
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+        'image/bmp',
+        'image/tiff',
+        'image/x-icon'
+      ]
     });
 
     if (error) {
