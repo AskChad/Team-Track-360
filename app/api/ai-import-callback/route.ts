@@ -20,11 +20,20 @@ export async function POST(req: NextRequest) {
     console.log('=== CALLBACK RECEIVED FROM MAKE.COM ===');
     console.log('Full body:', JSON.stringify(body, null, 2));
     console.log('Body keys:', Object.keys(body));
+    console.log('Body type:', typeof body);
+    console.log('Is Array:', Array.isArray(body));
     console.log('===================================');
 
     const { organizationId, entityType, data: webhookData, filePath } = body;
 
-    console.log('Received callback from Make.com:', { organizationId, entityType, items: webhookData?.length, filePath });
+    console.log('Extracted values:');
+    console.log('- organizationId:', organizationId);
+    console.log('- entityType:', entityType);
+    console.log('- filePath:', filePath);
+    console.log('- webhookData type:', typeof webhookData);
+    console.log('- webhookData isArray:', Array.isArray(webhookData));
+    console.log('- webhookData length:', webhookData?.length);
+    console.log('- webhookData first item:', webhookData?.[0] ? JSON.stringify(webhookData[0], null, 2) : 'none');
 
     if (!organizationId || !entityType || !webhookData) {
       return NextResponse.json(
