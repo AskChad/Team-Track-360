@@ -187,7 +187,9 @@ async function handleUpload(req: NextRequest) {
       }
 
       console.log('Image sent to Make.com webhook successfully');
-      console.log('Webhook response:', webhookData);
+      console.log('Webhook response type:', typeof webhookData);
+      console.log('Webhook response is Array:', Array.isArray(webhookData));
+      console.log('Webhook response:', JSON.stringify(webhookData, null, 2));
 
       // Insert data into database if webhook returned structured data
       let insertedCount = 0;
