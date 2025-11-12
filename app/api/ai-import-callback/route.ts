@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       let eventsCreated = 0;
 
       // Normalize field names from webhook response
-      webhookData = webhookData.map(item => ({
+      const normalizedData = webhookData.map(item => ({
         name: item.event_name || item.name,
         date: item.date,
         style: item.style,
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         .limit(1)
         .single();
 
-      for (const item of webhookData) {
+      for (const item of normalizedData) {
         try {
           // Create location if venue details provided
           let locationId = null;
