@@ -170,7 +170,22 @@ async function handleUpload(req: NextRequest) {
         throw new Error(`Webhook returned status ${webhookResponse.status}: ${errorText}`);
       }
 
-      const webhookData = await webhookResponse.json();
+      // Try to parse as JSON, fall back to text
+      const contentType = webhookResponse.headers.get('content-type');
+      let webhookData: any;
+
+      try {
+        const responseText = await webhookResponse.text();
+
+        if ((contentType?.includes('application/json') && responseText.trim().startsWith('{')) || responseText.trim().startsWith('[')) {
+          webhookData = JSON.parse(responseText);
+        } else {
+          webhookData = { message: responseText };
+        }
+      } catch (e) {
+        webhookData = { message: 'Accepted' };
+      }
+
       console.log('Image sent to Make.com webhook successfully');
       console.log('Webhook response:', webhookData);
 
