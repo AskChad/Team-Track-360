@@ -13,7 +13,7 @@ import { requireAuth } from '@/lib/auth';
 import { getOrganizationOpenAIKey } from '@/lib/openai-utils';
 import OpenAI from 'openai';
 
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 minutes for OpenAI Vision API
 
 const OPENAI_PROMPT = `You are a wrestling tournament data extraction assistant. Analyze this image and extract ALL tournament/competition information.
 
@@ -219,6 +219,7 @@ export async function POST(req: NextRequest) {
     let eventsCreated = 0;
     const errors: string[] = [];
     const competitionIds: string[] = [];
+    const competitionDataMap: Map<string, any> = new Map(); // Map competition ID to original data
 
     // Process each competition
     for (const comp of competitionsData) {
@@ -283,23 +284,27 @@ export async function POST(req: NextRequest) {
         const contactFirstName = nameParts[0] || null;
         const contactLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
 
-        // Create competition
+        // Build description with all the extracted data
+        const descriptionParts = [];
+        if (comp.style) descriptionParts.push(comp.style);
+        if (comp.divisions_included) descriptionParts.push(`Divisions: ${comp.divisions_included}`);
+        if (comp.date) descriptionParts.push(`Date: ${comp.date}`);
+        if (comp.registration_weighin_time) descriptionParts.push(`Weigh-in: ${comp.registration_weighin_time}`);
+        if (comp.registration_url) descriptionParts.push(`Registration: ${comp.registration_url}`);
+        if (comp.contact_name) descriptionParts.push(`Contact: ${comp.contact_name}`);
+        if (comp.contact_phone) descriptionParts.push(`Phone: ${comp.contact_phone}`);
+        if (comp.contact_email) descriptionParts.push(`Email: ${comp.contact_email}`);
+
+        // Create competition (only using columns that exist in schema)
         const { data: newCompetition, error: compError } = await supabaseAdmin
           .from('competitions')
           .insert({
             organization_id: organizationId,
             sport_id: sportId,
             name: comp.event_name,
-            description: `${comp.style || ''} ${comp.divisions_included || ''}`.trim(),
+            description: descriptionParts.join('\n'),
             competition_type: 'tournament',
-            start_date: comp.date,
-            end_date: comp.date,
             default_location_id: locationId,
-            registration_url: comp.registration_url,
-            contact_first_name: contactFirstName,
-            contact_last_name: contactLastName,
-            contact_phone: comp.contact_phone,
-            contact_email: comp.contact_email,
           })
           .select('id')
           .single();
@@ -312,6 +317,7 @@ export async function POST(req: NextRequest) {
           console.log(`Inserted competition: ${comp.event_name}`);
           if (newCompetition?.id) {
             competitionIds.push(newCompetition.id);
+            competitionDataMap.set(newCompetition.id, comp); // Store original data with ID
           }
         }
       } catch (e: any) {
@@ -363,9 +369,13 @@ export async function POST(req: NextRequest) {
 
         if (seasonId) {
           // Create events for each team
-          for (let i = 0; i < competitionIds.length; i++) {
-            const competitionId = competitionIds[i];
-            const comp = competitionsData[i];
+          for (const competitionId of competitionIds) {
+            const comp = competitionDataMap.get(competitionId);
+
+            if (!comp) {
+              console.log(`Skipping event creation - competition data not found for ID ${competitionId}`);
+              continue;
+            }
 
             if (!comp.date) {
               console.log(`Skipping event creation for ${comp.event_name} - no date`);
