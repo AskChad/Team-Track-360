@@ -10,9 +10,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { organizationId, entityType, data: webhookData } = body;
+    const { organizationId, entityType, data: webhookData, filePath } = body;
 
-    console.log('Received callback from Make.com:', { organizationId, entityType, items: webhookData?.length });
+    console.log('Received callback from Make.com:', { organizationId, entityType, items: webhookData?.length, filePath });
 
     if (!organizationId || !entityType || !webhookData) {
       return NextResponse.json(
@@ -196,6 +196,24 @@ export async function POST(req: NextRequest) {
       }
 
       console.log(`Successfully inserted ${insertedCount} competitions and ${eventsCreated} events`);
+
+      // Clean up: Delete the uploaded file from storage if filePath was provided
+      if (filePath) {
+        try {
+          const { error: deleteError } = await supabaseAdmin.storage
+            .from('temp-uploads')
+            .remove([filePath]);
+
+          if (deleteError) {
+            console.error('Error deleting uploaded file:', deleteError);
+          } else {
+            console.log(`Deleted uploaded file: ${filePath}`);
+          }
+        } catch (deleteErr) {
+          console.error('Failed to delete file:', deleteErr);
+          // Don't fail the request if cleanup fails
+        }
+      }
 
       return NextResponse.json({
         success: true,

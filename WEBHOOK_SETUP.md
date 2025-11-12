@@ -52,6 +52,7 @@ Callback payload format:
 {
   "organizationId": "917fd5d9-ef2d-45bf-b81d-4f48064d495d",
   "entityType": "competitions",
+  "filePath": "ai-imports/917fd5d9-ef2d-45bf-b81d-4f48064d495d/1234567890-schedule.jpg",
   "data": [
     {
       "date": "2025-10-12",
@@ -61,6 +62,8 @@ Callback payload format:
   ]
 }
 ```
+
+**Note:** Include the `filePath` parameter (the path in storage) so the uploaded file can be automatically deleted after processing.
 
 ## Current Behavior
 
