@@ -512,6 +512,9 @@ export default function TeamDetailPage() {
                     {logoFile && (
                       <p className="text-xs text-green-600 mt-1">New logo selected: {logoFile.name}</p>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Recommended: 200x200px (square). Displays next to team name on gradient background.
+                    </p>
                   </div>
 
                   <div>
@@ -528,7 +531,9 @@ export default function TeamDetailPage() {
                     {headerFile && (
                       <p className="text-xs text-green-600 mt-1">New header selected: {headerFile.name}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-1">Replaces team name and gradient when uploaded</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Recommended: 1200x200px (6:1 ratio). Replaces team name, logo, and gradient when uploaded.
+                    </p>
                   </div>
                 </div>
 

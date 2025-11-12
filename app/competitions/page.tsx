@@ -226,7 +226,7 @@ export default function CompetitionsPage() {
       formData.append('entity_type', 'competitions');
       formData.append('organization_id', uploadOrgId);
 
-      const response = await fetch('/api/ai-import', {
+      const response = await fetch('/api/ai-import-direct', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -398,7 +398,7 @@ export default function CompetitionsPage() {
             <div className="p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Competitions via AI</h2>
               <p className="text-gray-600 text-sm mb-6">
-                Upload an image file containing competition data (schedule, flyer, etc.). Our AI will automatically extract and import the data.
+                Upload an image file containing competition data (schedule, flyer, etc.). Our AI will directly analyze the image and import the data. Duplicates are automatically detected and skipped.
               </p>
 
               <form onSubmit={handleUpload} className="space-y-4">
@@ -458,13 +458,13 @@ export default function CompetitionsPage() {
                 )}
 
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <h3 className="font-bold text-sm text-purple-900 mb-2">AI Smart Import Features:</h3>
+                  <h3 className="font-bold text-sm text-purple-900 mb-2">Direct AI Vision Processing:</h3>
                   <ul className="text-xs text-purple-800 space-y-1">
-                    <li>• OCR text extraction from images</li>
-                    <li>• Automatically creates locations from venue data</li>
-                    <li>• Automatically creates events from date/time information</li>
-                    <li>• Handles schedules, flyers, and tournament brackets</li>
-                    <li>• Extracts contact information and registration details</li>
+                    <li>✓ Instant OpenAI Vision API processing (no webhooks)</li>
+                    <li>✓ Automatically creates locations from venue data</li>
+                    <li>✓ Duplicate detection (skips existing competitions/locations)</li>
+                    <li>✓ Handles schedules, flyers, and tournament brackets</li>
+                    <li>✓ Extracts contact information and registration details</li>
                   </ul>
                 </div>
 
@@ -475,22 +475,23 @@ export default function CompetitionsPage() {
                     </p>
                     {uploadResult.data && (
                       <div className="mt-2 text-xs text-gray-700">
-                        <p>Total records: {uploadResult.data.total}</p>
-                        <p className="text-green-700">Successful: {uploadResult.data.successful}</p>
-                        {uploadResult.data.failed > 0 && (
-                          <>
-                            <p className="text-red-700">Failed: {uploadResult.data.failed}</p>
-                            {uploadResult.data.errors?.length > 0 && (
-                              <div className="mt-2 max-h-32 overflow-y-auto">
-                                <p className="font-bold">Errors:</p>
-                                <ul className="list-disc list-inside">
-                                  {uploadResult.data.errors.map((err: string, idx: number) => (
-                                    <li key={idx}>{err}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </>
+                        <p>Total records found: {uploadResult.data.total}</p>
+                        <p className="text-green-700">✓ Inserted: {uploadResult.data.inserted}</p>
+                        {uploadResult.data.skipped > 0 && (
+                          <p className="text-blue-700">↷ Skipped (duplicates): {uploadResult.data.skipped}</p>
+                        )}
+                        {uploadResult.data.locationsCreated > 0 && (
+                          <p className="text-purple-700">+ Locations created: {uploadResult.data.locationsCreated}</p>
+                        )}
+                        {uploadResult.data.errors && uploadResult.data.errors.length > 0 && (
+                          <div className="mt-2 max-h-32 overflow-y-auto">
+                            <p className="font-bold text-red-700">Errors:</p>
+                            <ul className="list-disc list-inside text-red-600">
+                              {uploadResult.data.errors.map((err: string, idx: number) => (
+                                <li key={idx}>{err}</li>
+                              ))}
+                            </ul>
+                          </div>
                         )}
                       </div>
                     )}
