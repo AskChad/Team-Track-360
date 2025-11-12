@@ -234,6 +234,20 @@ export default function CompetitionsPage() {
         body: formData,
       });
 
+      // Handle non-JSON responses (404, etc.)
+      if (!response.ok) {
+        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response wasn't JSON, use status text
+        }
+        setUploadResult({ success: false, message: errorMessage });
+        setUploadLoading(false);
+        return;
+      }
+
       const data = await response.json();
       setUploadResult(data);
 
@@ -247,8 +261,12 @@ export default function CompetitionsPage() {
           setUploadResult(null);
         }, 2000);
       }
-    } catch (err) {
-      setUploadResult({ success: false, message: 'Failed to upload file' });
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setUploadResult({
+        success: false,
+        message: `Upload failed: ${err.message || 'Network error. Please check your connection and try again.'}`
+      });
     } finally {
       setUploadLoading(false);
     }
