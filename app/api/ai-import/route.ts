@@ -10,8 +10,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
-// Extend timeout for large file processing (max 60 seconds)
-export const maxDuration = 60;
+// Extend timeout for OCR processing (~103 seconds)
+// Vercel Pro plan allows up to 300 seconds
+export const maxDuration = 180;
 
 export async function POST(req: NextRequest) {
   // Wrap everything to ensure we always return valid JSON
@@ -393,38 +394,20 @@ async function handleUpload(req: NextRequest) {
         console.log(`Successfully inserted ${insertedCount} competitions and ${eventsCreated} events`);
       }
 
-      // Clean up: Delete the uploaded file from storage (only if data was processed)
-      if (insertedCount > 0) {
-        try {
-          const { error: deleteError } = await supabaseAdmin.storage
-            .from('temp-uploads')
-            .remove([uniqueFileName]);
+      // Clean up: Delete the uploaded file from storage
+      try {
+        const { error: deleteError } = await supabaseAdmin.storage
+          .from('temp-uploads')
+          .remove([uniqueFileName]);
 
-          if (deleteError) {
-            console.error('Error deleting uploaded file:', deleteError);
-          } else {
-            console.log(`Deleted uploaded file: ${uniqueFileName}`);
-          }
-        } catch (deleteErr) {
-          console.error('Failed to delete file:', deleteErr);
-          // Don't fail the request if cleanup fails
+        if (deleteError) {
+          console.error('Error deleting uploaded file:', deleteError);
+        } else {
+          console.log(`Deleted uploaded file: ${uniqueFileName}`);
         }
-      }
-
-      // Check if webhook returned "Accepted" (async mode)
-      const isAsyncMode = webhookData && typeof webhookData === 'object' && webhookData.message === 'Accepted';
-
-      if (isAsyncMode) {
-        return NextResponse.json({
-          success: true,
-          message: 'Image uploaded successfully. Processing in background (1-2 minutes). Data will appear automatically when complete.',
-          data: {
-            fileUrl: publicUrl,
-            status: 'processing',
-            mode: 'async',
-            estimatedTime: '1-2 minutes'
-          }
-        });
+      } catch (deleteErr) {
+        console.error('Failed to delete file:', deleteErr);
+        // Don't fail the request if cleanup fails
       }
 
       return NextResponse.json({
