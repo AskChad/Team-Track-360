@@ -75,14 +75,15 @@ export async function POST(req: NextRequest) {
                 city: item.city,
                 state: item.state,
                 zip: item.zip,
-                phone: item.contact_phone,
-                organization_id: organizationId
+                phone: item.contact_phone
               })
               .select('id')
               .single();
 
             if (!locationError && location) {
               locationId = location.id;
+            } else if (locationError) {
+              console.error('Location insert error:', locationError);
             }
           }
 
