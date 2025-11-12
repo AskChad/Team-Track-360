@@ -24,6 +24,9 @@ export const CredentialType = {
   TWILIO_AUTH_TOKEN: 'twilio_auth_token_encrypted',
   SENDGRID_API_KEY: 'sendgrid_api_key_encrypted',
   SLACK_WEBHOOK_URL: 'slack_webhook_url_encrypted',
+  GHL_CLIENT_ID: 'ghl_client_id_encrypted',
+  GHL_CLIENT_SECRET: 'ghl_client_secret_encrypted',
+  GHL_API_KEY: 'ghl_api_key_encrypted',
   // Add more as needed...
 } as const;
 

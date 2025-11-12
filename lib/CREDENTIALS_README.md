@@ -84,6 +84,9 @@ Currently supported integrations:
 - `TWILIO_AUTH_TOKEN` - Twilio auth token
 - `SENDGRID_API_KEY` - SendGrid for email
 - `SLACK_WEBHOOK_URL` - Slack webhook for notifications
+- `GHL_CLIENT_ID` - GoHighLevel OAuth client ID
+- `GHL_CLIENT_SECRET` - GoHighLevel OAuth client secret
+- `GHL_API_KEY` - GoHighLevel API key
 
 ## Adding a New Integration
 
@@ -276,6 +279,55 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
+}
+```
+
+### Example 4: GoHighLevel Integration
+
+```typescript
+import { getOrganizationCredentials, CredentialType } from '@/lib/credentials';
+
+export async function POST(req: NextRequest) {
+  const { organizationId, contactData } = await req.json();
+
+  // Get GHL credentials
+  const credentials = await getOrganizationCredentials(organizationId, [
+    CredentialType.GHL_CLIENT_ID,
+    CredentialType.GHL_CLIENT_SECRET,
+    CredentialType.GHL_API_KEY
+  ]);
+
+  const apiKey = credentials[CredentialType.GHL_API_KEY];
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'GoHighLevel not configured for this organization' },
+      { status: 400 }
+    );
+  }
+
+  // Create contact in GHL
+  const response = await fetch('https://rest.gohighlevel.com/v1/contacts', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      firstName: contactData.firstName,
+      lastName: contactData.lastName,
+      email: contactData.email,
+      phone: contactData.phone,
+      tags: contactData.tags || []
+    })
+  });
+
+  const ghlContact = await response.json();
+
+  return NextResponse.json({
+    success: true,
+    contactId: ghlContact.contact.id
+  });
 }
 ```
 
