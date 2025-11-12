@@ -1,11 +1,11 @@
 /**
  * OpenAI Utilities
  *
- * Centralized utilities for working with organization OpenAI API keys
+ * Convenience wrappers for OpenAI-specific credential access
+ * Uses the universal credentials system under the hood
  */
 
-import { supabaseAdmin } from '@/lib/supabase-admin';
-import { decrypt } from '@/lib/encryption';
+import { getOrganizationCredential, hasOrganizationCredential, CredentialType } from '@/lib/credentials';
 
 /**
  * Get and decrypt an organization's OpenAI API key
@@ -15,25 +15,7 @@ import { decrypt } from '@/lib/encryption';
  * @throws Error if database query fails
  */
 export async function getOrganizationOpenAIKey(organizationId: string): Promise<string | null> {
-  const { data: org, error } = await supabaseAdmin
-    .from('parent_organizations')
-    .select('openai_api_key_encrypted')
-    .eq('id', organizationId)
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to fetch organization: ${error.message}`);
-  }
-
-  if (!org?.openai_api_key_encrypted) {
-    return null;
-  }
-
-  try {
-    return decrypt(org.openai_api_key_encrypted);
-  } catch (err) {
-    throw new Error('Failed to decrypt OpenAI API key');
-  }
+  return getOrganizationCredential(organizationId, CredentialType.OPENAI_API_KEY);
 }
 
 /**
@@ -43,11 +25,5 @@ export async function getOrganizationOpenAIKey(organizationId: string): Promise<
  * @returns true if key exists, false otherwise
  */
 export async function organizationHasOpenAIKey(organizationId: string): Promise<boolean> {
-  const { data: org } = await supabaseAdmin
-    .from('parent_organizations')
-    .select('openai_api_key_encrypted')
-    .eq('id', organizationId)
-    .single();
-
-  return !!org?.openai_api_key_encrypted;
+  return hasOrganizationCredential(organizationId, CredentialType.OPENAI_API_KEY);
 }
