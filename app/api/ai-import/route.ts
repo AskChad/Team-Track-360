@@ -189,13 +189,87 @@ async function handleUpload(req: NextRequest) {
       console.log('Image sent to Make.com webhook successfully');
       console.log('Webhook response:', webhookData);
 
+      // Insert data into database if webhook returned structured data
+      let insertedCount = 0;
+      if (Array.isArray(webhookData) && webhookData.length > 0) {
+        console.log(`Processing ${webhookData.length} items from webhook...`);
+
+        // Get sport_id for wrestling (assuming Folkstyle/wrestling)
+        const { data: sports } = await supabaseAdmin
+          .from('sports')
+          .select('id')
+          .eq('name', 'Wrestling')
+          .single();
+
+        const sportId = sports?.id;
+        if (!sportId) {
+          console.warn('Wrestling sport not found, creating competitions without sport_id');
+        }
+
+        for (const item of webhookData) {
+          try {
+            // Create location if venue details provided
+            let locationId = null;
+            if (item.venue_name || item.address) {
+              const { data: location, error: locationError } = await supabaseAdmin
+                .from('locations')
+                .insert({
+                  name: item.venue_name || 'Unknown Venue',
+                  address: item.address,
+                  city: item.city,
+                  state: item.state,
+                  zip: item.zip,
+                  phone: item.contact_phone,
+                  organization_id: organizationId
+                })
+                .select('id')
+                .single();
+
+              if (!locationError && location) {
+                locationId = location.id;
+              }
+            }
+
+            // Insert competition
+            const { error: compError } = await supabaseAdmin
+              .from('competitions')
+              .insert({
+                organization_id: organizationId,
+                sport_id: sportId,
+                name: item.name || 'Unnamed Competition',
+                description: [
+                  item.style && `Style: ${item.style}`,
+                  item.divisions && item.divisions.length > 0 && `Divisions: ${item.divisions.join(', ')}`,
+                  item.registration_weigh_in_time && `Registration/Weigh-in: ${item.registration_weigh_in_time}`,
+                  item.contact_name && `Contact: ${item.contact_name}`,
+                  item.contact_email && `Email: ${item.contact_email}`,
+                  item.contact_phone && `Phone: ${item.contact_phone}`
+                ].filter(Boolean).join('\n'),
+                competition_type: 'tournament',
+                default_location_id: locationId
+              });
+
+            if (compError) {
+              console.error('Error inserting competition:', compError);
+            } else {
+              insertedCount++;
+            }
+          } catch (itemError: any) {
+            console.error('Error processing item:', itemError);
+          }
+        }
+
+        console.log(`Successfully inserted ${insertedCount} out of ${webhookData.length} competitions`);
+      }
+
       return NextResponse.json({
         success: true,
-        message: 'Image uploaded and processed successfully. Data imported.',
+        message: `Image uploaded and processed successfully. ${insertedCount} competitions imported.`,
         data: {
           fileUrl: publicUrl,
           status: 'completed',
-          imported: webhookData
+          imported: webhookData,
+          insertedCount
         }
       });
     } catch (webhookError: any) {
