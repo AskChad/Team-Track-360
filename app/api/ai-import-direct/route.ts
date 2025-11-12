@@ -25,6 +25,7 @@ For EACH competition/tournament you find, extract:
 - registration_weighin_time: Registration/weigh-in time
 - registration_url: URL for registration if shown
 - venue: Venue/location name
+- venue_type: Type of venue - MUST be one of: "high_school", "middle_school", "elementary_school", "college", "arena", "gym", "community_center", "convention_center", "other"
 - street_address: Street address
 - city: City name
 - state: State (2-letter code like CA, NY)
@@ -33,12 +34,22 @@ For EACH competition/tournament you find, extract:
 - contact_phone: Phone number
 - contact_email: Email address
 
+IMPORTANT for venue_type:
+- If venue contains "High School" or "HS" → use "high_school"
+- If venue contains "Middle School" or "MS" → use "middle_school"
+- If venue contains "College" or "University" → use "college"
+- If venue contains "Arena" or "Stadium" → use "arena"
+- If venue contains "Gym" or "Athletic Club" → use "gym"
+- If venue contains "Community Center" or "Rec Center" → use "community_center"
+- Otherwise → use "other"
+
 Return ONLY valid JSON array format:
 [
   {
     "event_name": "Tournament Name",
     "date": "2024-12-14",
     "style": "Folkstyle",
+    "venue_type": "high_school",
     ...
   }
 ]
@@ -239,6 +250,7 @@ export async function POST(req: NextRequest) {
                 city: comp.city,
                 state: comp.state,
                 zip: comp.zip,
+                venue_type: comp.venue_type || null,
               })
               .select('id')
               .single();
