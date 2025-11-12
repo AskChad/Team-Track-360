@@ -3,21 +3,34 @@
 ## Current Webhook URL
 `https://hook.us1.make.com/d77nbvtmp1y5fwrjvn4yt7985cthtxo1`
 
-## Problem
-The webhook currently returns "Accepted" but doesn't process the image and return data synchronously.
+## ⚠️ IMPORTANT: Use Asynchronous Callback (Required)
 
-## Solution Options
+**Processing Time**: The OCR processing takes ~103 seconds (1.7 minutes), which **exceeds Vercel's 60-second timeout**.
 
-### Option 1: Synchronous Response (Recommended for immediate feedback)
+**Solution**: Configure Make.com to use **asynchronous callback** approach.
 
-Configure the Make.com scenario to:
-1. Receive the webhook payload with `fileUrl`
-2. Download the image from the `fileUrl`
-3. Process with OCR/AI (OpenAI Vision, Google Vision, etc.)
-4. Parse the competition data
-5. **Return the structured JSON immediately** in the webhook response
+## Required Configuration
 
-Expected response format:
+### Step 1: Immediate Response
+Configure the Make.com scenario to return "Accepted" immediately when receiving the webhook:
+
+**Response**: `Accepted`
+**Response Time**: < 1 second
+
+### Step 2: Asynchronous Processing & Callback
+After returning "Accepted", the scenario should:
+1. Download the image from `fileUrl`
+2. Process with OCR/AI (OpenAI Vision, Google Vision, etc.)
+3. Parse the competition data
+4. **POST the results** to the callback endpoint: `https://track360.app/api/ai-import-callback`
+
+## Callback Endpoint Details
+
+**URL**: `https://track360.app/api/ai-import-callback`
+**Method**: POST
+**Headers**: `Content-Type: application/json`
+
+**Required Payload Format**:
 ```json
 [
   {
@@ -38,32 +51,44 @@ Expected response format:
 ]
 ```
 
-### Option 2: Asynchronous Callback
+### Callback Payload Structure
 
-If OCR processing takes too long (>30 seconds), configure Make.com to:
+The callback must include these fields from the original webhook request:
 
-1. Receive webhook payload
-2. Return "Accepted" immediately
-3. Process image asynchronously
-4. When done, POST the results to: `https://track360.app/api/ai-import-callback`
-
-Callback payload format:
 ```json
 {
   "organizationId": "917fd5d9-ef2d-45bf-b81d-4f48064d495d",
   "entityType": "competitions",
-  "filePath": "ai-imports/917fd5d9-ef2d-45bf-b81d-4f48064d495d/1234567890-schedule.jpg",
+  "filePath": "ai-imports/917fd5d9-ef2d-45bf-b81d-4f48064d495d/1762926597485-SCVWA_Folkstyle_Schedule.jpg",
   "data": [
     {
+      "event_name": "Raiders Classic",
       "date": "2025-10-12",
-      "name": "Raiders Classic",
-      ...
+      "style": "Folkstyle",
+      "divisions": "8U, 10U, 12U, 14U, 16U, JR. Boys, JR. Girls",
+      "restrictions": "",
+      "registration_weighin_time": "7:00 AM",
+      "registration_url": "https://usabracketing.com",
+      "venue_name": "Silver Creek High School",
+      "street_address": "3434 Silver Creek Rd",
+      "city": "San Jose",
+      "state": "CA",
+      "zip": "95121",
+      "contact_name": "Roberto Dixon",
+      "contact_phone": "831-524-4017",
+      "contact_email": "dixwrest@aol.com"
     }
   ]
 }
 ```
 
-**Note:** Include the `filePath` parameter (the path in storage) so the uploaded file can be automatically deleted after processing.
+**Critical Fields**:
+- `organizationId`: From original webhook request
+- `entityType`: From original webhook request (always "competitions")
+- `filePath`: From original webhook request (for file cleanup)
+- `data`: Array of extracted competition data
+
+**Note**: The `filePath` is essential - it allows the system to automatically delete the uploaded file from storage after successful processing.
 
 ## Current Behavior
 

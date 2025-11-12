@@ -158,6 +158,7 @@ async function handleUpload(req: NextRequest) {
         body: JSON.stringify({
           fileUrl: publicUrl,
           fileName: file.name,
+          filePath: uniqueFileName,
           organizationId: organizationId,
           entityType: entityType,
           timestamp: timestamp,
@@ -392,20 +393,38 @@ async function handleUpload(req: NextRequest) {
         console.log(`Successfully inserted ${insertedCount} competitions and ${eventsCreated} events`);
       }
 
-      // Clean up: Delete the uploaded file from storage
-      try {
-        const { error: deleteError } = await supabaseAdmin.storage
-          .from('temp-uploads')
-          .remove([uniqueFileName]);
+      // Clean up: Delete the uploaded file from storage (only if data was processed)
+      if (insertedCount > 0) {
+        try {
+          const { error: deleteError } = await supabaseAdmin.storage
+            .from('temp-uploads')
+            .remove([uniqueFileName]);
 
-        if (deleteError) {
-          console.error('Error deleting uploaded file:', deleteError);
-        } else {
-          console.log(`Deleted uploaded file: ${uniqueFileName}`);
+          if (deleteError) {
+            console.error('Error deleting uploaded file:', deleteError);
+          } else {
+            console.log(`Deleted uploaded file: ${uniqueFileName}`);
+          }
+        } catch (deleteErr) {
+          console.error('Failed to delete file:', deleteErr);
+          // Don't fail the request if cleanup fails
         }
-      } catch (deleteErr) {
-        console.error('Failed to delete file:', deleteErr);
-        // Don't fail the request if cleanup fails
+      }
+
+      // Check if webhook returned "Accepted" (async mode)
+      const isAsyncMode = webhookData && typeof webhookData === 'object' && webhookData.message === 'Accepted';
+
+      if (isAsyncMode) {
+        return NextResponse.json({
+          success: true,
+          message: 'Image uploaded successfully. Processing in background (1-2 minutes). Data will appear automatically when complete.',
+          data: {
+            fileUrl: publicUrl,
+            status: 'processing',
+            mode: 'async',
+            estimatedTime: '1-2 minutes'
+          }
+        });
       }
 
       return NextResponse.json({
