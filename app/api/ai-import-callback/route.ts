@@ -47,24 +47,37 @@ export async function POST(req: NextRequest) {
       let insertedCount = 0;
       let eventsCreated = 0;
 
+      // FLATTEN nested array - Make.com sends [[items]] instead of [items]
+      let flatData = webhookData;
+      if (webhookData.length === 1 && Array.isArray(webhookData[0])) {
+        console.log('Flattening nested array structure from Make.com');
+        flatData = webhookData[0];
+      }
+      console.log(`Processing ${flatData.length} competitions`);
+
       // Normalize field names from webhook response
-      const normalizedData = webhookData.map(item => ({
-        name: item.event_name || item.name,
-        date: item.date,
-        style: item.style,
-        divisions: typeof item.divisions === 'string' ? item.divisions.split(',').map((d: string) => d.trim()) : item.divisions,
-        restrictions: item.restrictions,
-        registration_weigh_in_time: item.registration_weighin_time || item.registration_weigh_in_time,
-        registration_url: item.registration_url,
-        venue_name: item.venue_name,
-        address: item.street_address || item.address,
-        city: item.city,
-        state: item.state,
-        zip: item.zip,
-        contact_name: item.contact_name,
-        contact_phone: item.contact_phone,
-        contact_email: item.contact_email
-      }));
+      const normalizedData = flatData.map(item => {
+        const divisionsRaw = item.divisions_included || item.divisions;
+        const divisions = typeof divisionsRaw === 'string' ? divisionsRaw.split(',').map((d: string) => d.trim()) : divisionsRaw;
+
+        return {
+          name: item.event_name || item.name,
+          date: item.date,
+          style: item.style,
+          divisions: divisions,
+          restrictions: item.divisions_excluded || item.restrictions,
+          registration_weigh_in_time: item.registration_weighin_time || item.registration_weigh_in_time,
+          registration_url: item.registration_url,
+          venue_name: item.venue || item.venue_name,
+          address: item.street || item.street_address || item.address,
+          city: item.city,
+          state: item.state,
+          zip: item.zip,
+          contact_name: item.contact_name,
+          contact_phone: item.contact_phone,
+          contact_email: item.contact_email
+        };
+      });
 
       // Get sport_id for wrestling
       const { data: sports } = await supabaseAdmin
