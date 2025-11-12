@@ -60,6 +60,15 @@ export async function POST(req: NextRequest) {
         const divisionsRaw = item.divisions_included || item.divisions;
         const divisions = typeof divisionsRaw === 'string' ? divisionsRaw.split(',').map((d: string) => d.trim()) : divisionsRaw;
 
+        // Parse contact name into first and last name
+        let contactFirstName = null;
+        let contactLastName = null;
+        if (item.contact_name) {
+          const nameParts = item.contact_name.trim().split(' ');
+          contactFirstName = nameParts[0];
+          contactLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
+        }
+
         return {
           name: item.event_name || item.name,
           date: item.date,
@@ -73,7 +82,8 @@ export async function POST(req: NextRequest) {
           city: item.city,
           state: item.state,
           zip: item.zip,
-          contact_name: item.contact_name,
+          contact_first_name: contactFirstName,
+          contact_last_name: contactLastName,
           contact_phone: item.contact_phone,
           contact_email: item.contact_email
         };
@@ -149,14 +159,15 @@ export async function POST(req: NextRequest) {
               name: item.name || 'Unnamed Competition',
               description: [
                 item.style && `Style: ${item.style}`,
-                item.divisions && item.divisions.length > 0 && `Divisions: ${item.divisions.join(', ')}`,
-                item.registration_weigh_in_time && `Registration/Weigh-in: ${item.registration_weigh_in_time}`,
-                item.contact_name && `Contact: ${item.contact_name}`,
-                item.contact_email && `Email: ${item.contact_email}`,
-                item.contact_phone && `Phone: ${item.contact_phone}`
+                item.registration_weigh_in_time && `Registration/Weigh-in: ${item.registration_weigh_in_time}`
               ].filter(Boolean).join('\n'),
               competition_type: 'tournament',
-              default_location_id: locationId
+              default_location_id: locationId,
+              divisions: item.divisions,
+              contact_first_name: item.contact_first_name,
+              contact_last_name: item.contact_last_name,
+              contact_email: item.contact_email,
+              contact_phone: item.contact_phone
             })
             .select('id')
             .single();
