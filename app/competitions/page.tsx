@@ -67,6 +67,8 @@ export default function CompetitionsPage() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ success: boolean; message: string; data?: any } | null>(null);
   const [createEvents, setCreateEvents] = useState(false);
+  const [selectedSports, setSelectedSports] = useState<string[]>([]);
+  const [orgSports, setOrgSports] = useState<Sport[]>([]);
   const [formData, setFormData] = useState({
     organization_id: '',
     sport_id: '',
@@ -103,6 +105,16 @@ export default function CompetitionsPage() {
       }
     }
   }, [sports]);
+
+  // Fetch organization sports when uploadOrgId changes
+  useEffect(() => {
+    if (uploadOrgId) {
+      fetchOrgSports(uploadOrgId);
+    } else {
+      setOrgSports([]);
+      setSelectedSports([]);
+    }
+  }, [uploadOrgId]);
 
   const fetchCompetitions = async () => {
     try {
@@ -171,6 +183,31 @@ export default function CompetitionsPage() {
       }
     } catch (err) {
       console.error('Failed to load locations');
+    }
+  };
+
+  const fetchOrgSports = async (organizationId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/organizations/${organizationId}/sports`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        const sports = data.data || [];
+        setOrgSports(sports);
+
+        // Auto-select Wrestling if available, otherwise select first sport
+        const wrestling = sports.find((s: Sport) => s.name.toLowerCase() === 'wrestling');
+        if (wrestling) {
+          setSelectedSports([wrestling.id]);
+        } else if (sports.length > 0) {
+          setSelectedSports([sports[0].id]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load organization sports');
+      setOrgSports([]);
     }
   };
 
@@ -262,6 +299,8 @@ export default function CompetitionsPage() {
           setUploadOrgId('');
           setCreateEvents(false);
           setUploadResult(null);
+          setOrgSports([]);
+          setSelectedSports([]);
         }, 2000);
       }
     } catch (err: any) {
@@ -444,6 +483,37 @@ export default function CompetitionsPage() {
                   </p>
                 </div>
 
+                {orgSports.length > 1 && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Sports
+                    </label>
+                    <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto bg-white">
+                      {orgSports.map((sport) => (
+                        <label key={sport.id} className="flex items-center gap-2 py-1 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedSports.includes(sport.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedSports([...selectedSports, sport.id]);
+                              } else {
+                                setSelectedSports(selectedSports.filter(id => id !== sport.id));
+                              }
+                            }}
+                            disabled={uploadLoading}
+                            className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                          />
+                          <span className="text-sm text-gray-700">{sport.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select the sports to associate with imported competitions
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">
                     File *
@@ -561,6 +631,8 @@ export default function CompetitionsPage() {
                       setUploadFile(null);
                       setUploadOrgId('');
                       setUploadResult(null);
+                      setOrgSports([]);
+                      setSelectedSports([]);
                     }}
                     disabled={uploadLoading}
                     className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300 disabled:opacity-50"
