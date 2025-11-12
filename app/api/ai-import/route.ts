@@ -175,23 +175,51 @@ async function handleUpload(req: NextRequest) {
       // Try to parse as JSON, fall back to text
       const responseContentType = webhookResponse.headers.get('content-type');
       let webhookData: any;
+      let responseText = '';
+      let parseError: any = null;
 
       try {
-        const responseText = await webhookResponse.text();
+        responseText = await webhookResponse.text();
+        console.log('=== WEBHOOK RESPONSE DEBUG ===');
+        console.log('Response status:', webhookResponse.status, webhookResponse.statusText);
+        console.log('Response content-type:', responseContentType);
+        console.log('Response text length:', responseText.length);
+        console.log('Response text (first 500 chars):', responseText.substring(0, 500));
+        console.log('Response text (last 500 chars):', responseText.substring(Math.max(0, responseText.length - 500)));
 
         if ((responseContentType?.includes('application/json') && responseText.trim().startsWith('{')) || responseText.trim().startsWith('[')) {
           webhookData = JSON.parse(responseText);
+          console.log('Successfully parsed as JSON');
         } else {
+          console.log('Response is not JSON, treating as plain text');
           webhookData = { message: responseText };
         }
-      } catch (e) {
-        webhookData = { message: 'Accepted' };
+      } catch (e: any) {
+        parseError = e;
+        console.error('Error parsing webhook response:', e.message);
+        console.error('Raw response text:', responseText);
+        webhookData = { message: responseText || 'Accepted' };
       }
 
       console.log('Image sent to Make.com webhook successfully');
       console.log('Webhook response type:', typeof webhookData);
       console.log('Webhook response is Array:', Array.isArray(webhookData));
-      console.log('Webhook response:', JSON.stringify(webhookData, null, 2));
+      console.log('Webhook data items:', Array.isArray(webhookData) ? webhookData.length : 'N/A');
+
+      // Save debug info to help troubleshoot
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
+        status: webhookResponse.status,
+        contentType: responseContentType,
+        responseLength: responseText.length,
+        responsePreview: responseText.substring(0, 200),
+        isArray: Array.isArray(webhookData),
+        itemCount: Array.isArray(webhookData) ? webhookData.length : 0,
+        parseError: parseError?.message,
+        organizationId,
+        fileName: file.name
+      };
+      console.log('=== DEBUG INFO ===', JSON.stringify(debugInfo, null, 2));
 
       // Insert data into database if webhook returned structured data
       let insertedCount = 0;
