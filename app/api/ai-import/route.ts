@@ -191,6 +191,7 @@ async function handleUpload(req: NextRequest) {
 
       // Insert data into database if webhook returned structured data
       let insertedCount = 0;
+      let eventsCreated = 0;
       if (Array.isArray(webhookData) && webhookData.length > 0) {
         console.log(`Processing ${webhookData.length} items from webhook...`);
 
@@ -203,8 +204,34 @@ async function handleUpload(req: NextRequest) {
 
         const sportId = sports?.id;
         if (!sportId) {
-          console.warn('Wrestling sport not found, creating competitions without sport_id');
+          console.warn('Wrestling sport not found, skipping import');
+          return NextResponse.json({
+            success: false,
+            error: 'Wrestling sport not found in database. Please create it first.'
+          }, { status: 400 });
         }
+
+        // Get all teams for this organization
+        const { data: teams } = await supabaseAdmin
+          .from('teams')
+          .select('id, name')
+          .eq('organization_id', organizationId);
+
+        if (!teams || teams.length === 0) {
+          console.warn('No teams found for organization');
+          return NextResponse.json({
+            success: false,
+            error: 'No teams found for this organization. Please create teams first.'
+          }, { status: 400 });
+        }
+
+        // Get competitive event type
+        const { data: eventType } = await supabaseAdmin
+          .from('event_types')
+          .select('id')
+          .eq('category', 'competitive')
+          .limit(1)
+          .single();
 
         for (const item of webhookData) {
           try {
@@ -231,7 +258,7 @@ async function handleUpload(req: NextRequest) {
             }
 
             // Insert competition
-            const { error: compError } = await supabaseAdmin
+            const { data: competition, error: compError } = await supabaseAdmin
               .from('competitions')
               .insert({
                 organization_id: organizationId,
@@ -247,29 +274,111 @@ async function handleUpload(req: NextRequest) {
                 ].filter(Boolean).join('\n'),
                 competition_type: 'tournament',
                 default_location_id: locationId
-              });
+              })
+              .select('id')
+              .single();
 
             if (compError) {
               console.error('Error inserting competition:', compError);
-            } else {
-              insertedCount++;
+              continue;
+            }
+
+            insertedCount++;
+            const competitionId = competition.id;
+
+            // Create events for each team
+            if (item.date && competitionId) {
+              for (const team of teams) {
+                try {
+                  // Get or create active season for this team
+                  const currentYear = new Date().getFullYear();
+                  let { data: season } = await supabaseAdmin
+                    .from('seasons')
+                    .select('id')
+                    .eq('team_id', team.id)
+                    .eq('year', currentYear)
+                    .single();
+
+                  if (!season) {
+                    // Create a season for current year
+                    const { data: newSeason } = await supabaseAdmin
+                      .from('seasons')
+                      .insert({
+                        team_id: team.id,
+                        year: currentYear,
+                        name: `${currentYear} Season`,
+                        start_date: `${currentYear}-01-01`,
+                        end_date: `${currentYear}-12-31`
+                      })
+                      .select('id')
+                      .single();
+
+                    season = newSeason;
+                  }
+
+                  if (season) {
+                    // Parse weigh-in time if provided
+                    let weighInTime = null;
+                    if (item.registration_weigh_in_time) {
+                      // Try to extract time from strings like "7:00 AM" or "7:30 AM"
+                      const timeMatch = item.registration_weigh_in_time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                      if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const minutes = timeMatch[2];
+                        const period = timeMatch[3].toUpperCase();
+
+                        if (period === 'PM' && hours !== 12) hours += 12;
+                        if (period === 'AM' && hours === 12) hours = 0;
+
+                        weighInTime = `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+                      }
+                    }
+
+                    // Create event
+                    const { error: eventError } = await supabaseAdmin
+                      .from('events')
+                      .insert({
+                        competition_id: competitionId,
+                        team_id: team.id,
+                        season_id: season.id,
+                        name: item.name || 'Unnamed Competition',
+                        description: item.style ? `${item.style} Tournament` : 'Tournament',
+                        event_type_id: eventType?.id,
+                        event_date: item.date,
+                        location_id: locationId,
+                        weigh_in_time: weighInTime,
+                        is_public: true,
+                        status: 'scheduled'
+                      });
+
+                    if (!eventError) {
+                      eventsCreated++;
+                    } else {
+                      console.error('Error creating event for team:', team.name, eventError);
+                    }
+                  }
+                } catch (teamError: any) {
+                  console.error(`Error creating event for team ${team.name}:`, teamError);
+                }
+              }
             }
           } catch (itemError: any) {
             console.error('Error processing item:', itemError);
           }
         }
 
-        console.log(`Successfully inserted ${insertedCount} out of ${webhookData.length} competitions`);
+        console.log(`Successfully inserted ${insertedCount} competitions and ${eventsCreated} events`);
       }
 
       return NextResponse.json({
         success: true,
-        message: `Image uploaded and processed successfully. ${insertedCount} competitions imported.`,
+        message: `Image uploaded and processed successfully. ${insertedCount} competitions and ${eventsCreated} events imported.`,
         data: {
           fileUrl: publicUrl,
           status: 'completed',
           imported: webhookData,
-          insertedCount
+          insertedCount,
+          eventsCreated
         }
       });
     } catch (webhookError: any) {
