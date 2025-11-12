@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File;
     const entityType = formData.get('entity_type') as string;
     const organizationId = formData.get('organization_id') as string;
+    const createEvents = formData.get('create_events') === 'true';
 
     if (!file || !entityType || !organizationId) {
       return NextResponse.json(
@@ -218,7 +219,9 @@ export async function POST(req: NextRequest) {
     let insertedCount = 0;
     let skippedCount = 0;
     let locationsCreated = 0;
+    let eventsCreated = 0;
     const errors: string[] = [];
+    const competitionIds: string[] = [];
 
     // Process each competition
     for (const comp of competitionsData) {
@@ -284,7 +287,7 @@ export async function POST(req: NextRequest) {
         const contactLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
 
         // Create competition
-        const { error: compError } = await supabaseAdmin
+        const { data: newCompetition, error: compError } = await supabaseAdmin
           .from('competitions')
           .insert({
             organization_id: organizationId,
@@ -300,7 +303,9 @@ export async function POST(req: NextRequest) {
             contact_last_name: contactLastName,
             contact_phone: comp.contact_phone,
             contact_email: comp.contact_email,
-          });
+          })
+          .select('id')
+          .single();
 
         if (compError) {
           console.error(`Error inserting competition ${comp.event_name}:`, compError);
@@ -308,6 +313,9 @@ export async function POST(req: NextRequest) {
         } else {
           insertedCount++;
           console.log(`Inserted competition: ${comp.event_name}`);
+          if (newCompetition?.id) {
+            competitionIds.push(newCompetition.id);
+          }
         }
       } catch (e: any) {
         console.error(`Error processing competition ${comp.event_name}:`, e);
@@ -315,14 +323,103 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Create events if checkbox was checked
+    // Events are created at organization level (all teams in org can see them)
+    if (createEvents && competitionIds.length > 0) {
+      console.log(`Creating events for ${competitionIds.length} competitions...`);
+
+      // Get all teams in this organization
+      const { data: orgTeams } = await supabaseAdmin
+        .from('teams')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true);
+
+      if (!orgTeams || orgTeams.length === 0) {
+        console.log('No active teams found in organization - skipping event creation');
+      } else {
+        // Get or create a season for this organization
+        const currentYear = new Date().getFullYear();
+        const { data: season } = await supabaseAdmin
+          .from('seasons')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .eq('name', `${currentYear} Season`)
+          .maybeSingle();
+
+        let seasonId = season?.id;
+
+        if (!seasonId) {
+          // Create season
+          const { data: newSeason } = await supabaseAdmin
+            .from('seasons')
+            .insert({
+              organization_id: organizationId,
+              name: `${currentYear} Season`,
+              start_date: `${currentYear}-01-01`,
+              end_date: `${currentYear}-12-31`,
+            })
+            .select('id')
+            .single();
+          seasonId = newSeason?.id;
+        }
+
+        if (seasonId) {
+          // Create events for each team
+          for (let i = 0; i < competitionIds.length; i++) {
+            const competitionId = competitionIds[i];
+            const comp = competitionsData[i];
+
+            if (!comp.date) {
+              console.log(`Skipping event creation for ${comp.event_name} - no date`);
+              continue;
+            }
+
+            // Create event for each team in the organization
+            for (const team of orgTeams) {
+              try {
+                const { error: eventError } = await supabaseAdmin
+                  .from('events')
+                  .insert({
+                    team_id: team.id,
+                    season_id: seasonId,
+                    competition_id: competitionId,
+                    name: comp.event_name,
+                    description: `${comp.style || ''} ${comp.divisions_included || ''}`.trim(),
+                    event_date: comp.date,
+                    status: 'scheduled',
+                  });
+
+                if (eventError) {
+                  console.error(`Error creating event for ${comp.event_name}:`, eventError);
+                  errors.push(`Event for ${comp.event_name}: ${eventError.message}`);
+                } else {
+                  eventsCreated++;
+                  console.log(`Created event for team ${team.id}: ${comp.event_name}`);
+                }
+              } catch (e: any) {
+                console.error(`Error creating event for ${comp.event_name}:`, e);
+                errors.push(`Event for ${comp.event_name}: ${e.message}`);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const message = createEvents
+      ? `Processed ${competitionsData.length} competitions: ${insertedCount} inserted, ${skippedCount} skipped. Created ${eventsCreated} events.`
+      : `Processed ${competitionsData.length} competitions: ${insertedCount} inserted, ${skippedCount} skipped (duplicates)`;
+
     return NextResponse.json({
       success: true,
-      message: `Processed ${competitionsData.length} competitions: ${insertedCount} inserted, ${skippedCount} skipped (duplicates)`,
+      message,
       data: {
         total: competitionsData.length,
         inserted: insertedCount,
         skipped: skippedCount,
         locationsCreated,
+        eventsCreated,
         errors: errors.length > 0 ? errors : undefined,
       },
     });

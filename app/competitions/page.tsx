@@ -66,6 +66,7 @@ export default function CompetitionsPage() {
   const [uploadOrgId, setUploadOrgId] = useState('');
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ success: boolean; message: string; data?: any } | null>(null);
+  const [createEvents, setCreateEvents] = useState(false);
   const [formData, setFormData] = useState({
     organization_id: '',
     sport_id: '',
@@ -225,6 +226,7 @@ export default function CompetitionsPage() {
       formData.append('file', uploadFile);
       formData.append('entity_type', 'competitions');
       formData.append('organization_id', uploadOrgId);
+      formData.append('create_events', createEvents ? 'true' : 'false');
 
       const response = await fetch('/api/ai-import-direct', {
         method: 'POST',
@@ -258,6 +260,7 @@ export default function CompetitionsPage() {
           setShowUploadModal(false);
           setUploadFile(null);
           setUploadOrgId('');
+          setCreateEvents(false);
           setUploadResult(null);
         }, 2000);
       }
@@ -475,6 +478,23 @@ export default function CompetitionsPage() {
                   </div>
                 )}
 
+                <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="createEvents"
+                    checked={createEvents}
+                    onChange={(e) => setCreateEvents(e.target.checked)}
+                    disabled={uploadLoading}
+                    className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="createEvents" className="flex-1 text-sm">
+                    <span className="font-bold text-blue-900">Also create events for this organization</span>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Creates calendar events from competition dates. Events will only be visible to users in the selected organization.
+                    </p>
+                  </label>
+                </div>
+
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h3 className="font-bold text-sm text-purple-900 mb-2">Direct AI Vision Processing:</h3>
                   <ul className="text-xs text-purple-800 space-y-1">
@@ -500,6 +520,9 @@ export default function CompetitionsPage() {
                         )}
                         {uploadResult.data.locationsCreated > 0 && (
                           <p className="text-purple-700">+ Locations created: {uploadResult.data.locationsCreated}</p>
+                        )}
+                        {uploadResult.data.eventsCreated > 0 && (
+                          <p className="text-green-700">📅 Events created: {uploadResult.data.eventsCreated}</p>
                         )}
                         {uploadResult.data.errors && uploadResult.data.errors.length > 0 && (
                           <div className="mt-2 max-h-32 overflow-y-auto">
