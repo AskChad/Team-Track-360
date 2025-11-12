@@ -26,6 +26,25 @@ export async function POST(req: NextRequest) {
       let insertedCount = 0;
       let eventsCreated = 0;
 
+      // Normalize field names from webhook response
+      webhookData = webhookData.map(item => ({
+        name: item.event_name || item.name,
+        date: item.date,
+        style: item.style,
+        divisions: typeof item.divisions === 'string' ? item.divisions.split(',').map((d: string) => d.trim()) : item.divisions,
+        restrictions: item.restrictions,
+        registration_weigh_in_time: item.registration_weighin_time || item.registration_weigh_in_time,
+        registration_url: item.registration_url,
+        venue_name: item.venue_name,
+        address: item.street_address || item.address,
+        city: item.city,
+        state: item.state,
+        zip: item.zip,
+        contact_name: item.contact_name,
+        contact_phone: item.contact_phone,
+        contact_email: item.contact_email
+      }));
+
       // Get sport_id for wrestling
       const { data: sports } = await supabaseAdmin
         .from('sports')
