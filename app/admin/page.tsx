@@ -236,7 +236,7 @@ export default function AdminPage() {
         total_teams: teamsData.data?.count || 0,
         total_athletes: athletesData.data?.count || 0,
         total_events: eventsData.data?.count || 0,
-        total_competitions: compsData.data?.count || 0,
+        total_competitions: Array.isArray(compsData.data) ? compsData.data.length : (compsData.data?.count || 0),
         total_locations: locsData.data?.length || 0,
         total_rosters: rostersData.data?.count || 0,
       });
@@ -246,7 +246,7 @@ export default function AdminPage() {
       setTeams(teamsData.data?.teams || []);
       setAthletes(athletesData.data?.athletes || []);
       setLocations(locsData.data || []);
-      setCompetitions(compsData.data?.competitions || []);
+      setCompetitions(Array.isArray(compsData.data) ? compsData.data : (compsData.data?.competitions || []));
       setRosters(rostersData.data?.rosters || []);
 
       setLoading(false);
