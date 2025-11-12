@@ -1679,9 +1679,6 @@ export default function AdminPage() {
                       <option key={org.id} value={org.id}>{org.name}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    The organization must have an OpenAI API key configured
-                  </p>
                 </div>
 
                 <div>
@@ -1691,13 +1688,16 @@ export default function AdminPage() {
                   <input
                     type="file"
                     required
-                    accept=".txt,.csv,.json,.tsv"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff"
                     onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                     disabled={uploadLoading}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: TXT, CSV, JSON, TSV (text-based files only)
+                    Supported formats: JPG, PNG, GIF, WebP, BMP, TIFF
+                  </p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    <strong>Have a PDF?</strong> Export it as JPG/PNG first. Most PDF viewers have "Export as Image" or "Save as JPG" options.
                   </p>
                 </div>
 
