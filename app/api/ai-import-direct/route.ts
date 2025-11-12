@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
+import { decrypt } from '@/lib/encryption';
 import OpenAI from 'openai';
 
 export const maxDuration = 60;
@@ -114,20 +115,23 @@ export async function POST(req: NextRequest) {
     // Get organization's OpenAI API key
     const { data: org, error: orgError } = await supabaseAdmin
       .from('parent_organizations')
-      .select('openai_api_key')
+      .select('openai_api_key_encrypted')
       .eq('id', organizationId)
       .single();
 
-    if (orgError || !org?.openai_api_key) {
+    if (orgError || !org?.openai_api_key_encrypted) {
       return NextResponse.json(
         { success: false, error: 'Organization does not have an OpenAI API key configured. Please add one in organization settings.' },
         { status: 400 }
       );
     }
 
+    // Decrypt the API key
+    const decryptedKey = decrypt(org.openai_api_key_encrypted);
+
     // Initialize OpenAI with organization's key
     const openai = new OpenAI({
-      apiKey: org.openai_api_key,
+      apiKey: decryptedKey,
     });
 
     // Check file size (limit to 5MB)
