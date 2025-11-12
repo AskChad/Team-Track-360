@@ -171,13 +171,13 @@ async function handleUpload(req: NextRequest) {
       }
 
       // Try to parse as JSON, fall back to text
-      const contentType = webhookResponse.headers.get('content-type');
+      const responseContentType = webhookResponse.headers.get('content-type');
       let webhookData: any;
 
       try {
         const responseText = await webhookResponse.text();
 
-        if ((contentType?.includes('application/json') && responseText.trim().startsWith('{')) || responseText.trim().startsWith('[')) {
+        if ((responseContentType?.includes('application/json') && responseText.trim().startsWith('{')) || responseText.trim().startsWith('[')) {
           webhookData = JSON.parse(responseText);
         } else {
           webhookData = { message: responseText };
