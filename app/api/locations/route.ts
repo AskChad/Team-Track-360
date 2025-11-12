@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
-    // Get locations
-    const { data: locations, error } = await supabase
+    // Get locations - use supabaseAdmin to bypass RLS
+    const { data: locations, error } = await supabaseAdmin
       .from('locations')
       .select('*')
       .order('name');
@@ -87,8 +87,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create location
-    const { data: location, error } = await supabase
+    // Create location - use supabaseAdmin to bypass RLS
+    const { data: location, error } = await supabaseAdmin
       .from('locations')
       .insert({
         name,
