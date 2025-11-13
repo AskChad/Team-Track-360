@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
           )
         )
       `)
-      .order('start_time', { ascending: true });
+      .order('event_date', { ascending: true });
 
     // Apply role-based filtering
     if (isPlatformAdmin) {

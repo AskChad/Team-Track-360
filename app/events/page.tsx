@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 
 interface Event {
   id: string;
-  title: string;
+  name: string;
   description?: string;
-  start_time: string;
+  event_date: string;
+  start_time?: string;
   end_time?: string;
-  all_day: boolean;
+  status: string;
   event_types?: {
     name: string;
     color: string;
@@ -19,6 +20,10 @@ interface Event {
     name: string;
     city: string;
     state: string;
+  };
+  competitions?: {
+    id: string;
+    name: string;
   };
 }
 
@@ -62,15 +67,15 @@ export default function EventsPage() {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     team_id: '',
-    title: '',
+    name: '',
     description: '',
     event_type_id: '',
     location_id: '',
+    event_date: '',
     start_time: '',
     end_time: '',
-    all_day: false,
-    is_mandatory: false,
-    max_attendees: '',
+    weigh_in_time: '',
+    check_in_time: '',
   });
 
   // Check if user can create events (Platform Admin or has teams)
@@ -181,10 +186,7 @@ export default function EventsPage() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null,
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
@@ -192,15 +194,15 @@ export default function EventsPage() {
         setShowCreateModal(false);
         setFormData({
           team_id: selectedTeam,
-          title: '',
+          name: '',
           description: '',
           event_type_id: '',
           location_id: '',
+          event_date: '',
           start_time: '',
           end_time: '',
-          all_day: false,
-          is_mandatory: false,
-          max_attendees: '',
+          weigh_in_time: '',
+          check_in_time: '',
         });
         if (selectedTeam) {
           fetchEvents(token!, selectedTeam);
@@ -358,7 +360,7 @@ export default function EventsPage() {
                     </div>
 
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      {event.title}
+                      {event.name}
                     </h3>
 
                     {event.description && (
@@ -370,16 +372,16 @@ export default function EventsPage() {
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        {formatDate(event.start_time)}
+                        {formatDate(event.event_date)}
                       </span>
 
-                      {!event.all_day && (
+                      {event.start_time && (
                         <span className="flex items-center">
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          {formatTime(event.start_time)}
-                          {event.end_time && ` - ${formatTime(event.end_time)}`}
+                          {event.start_time}
+                          {event.end_time && ` - ${event.end_time}`}
                         </span>
                       )}
 
@@ -430,13 +432,13 @@ export default function EventsPage() {
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Event Title *
+                    Event Name *
                   </label>
                   <input
                     type="text"
                     required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g., Team Practice, Match vs. Lincoln"
                   />
@@ -494,14 +496,26 @@ export default function EventsPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Event Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.event_date}
+                    onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">
-                      Start Date & Time *
+                      Start Time
                     </label>
                     <input
-                      type="datetime-local"
-                      required
+                      type="time"
                       value={formData.start_time}
                       onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -510,10 +524,10 @@ export default function EventsPage() {
 
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">
-                      End Date & Time
+                      End Time
                     </label>
                     <input
-                      type="datetime-local"
+                      type="time"
                       value={formData.end_time}
                       onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -521,39 +535,30 @@ export default function EventsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Weigh-in Time
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={formData.all_day}
-                      onChange={(e) => setFormData({ ...formData, all_day: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      type="time"
+                      value={formData.weigh_in_time}
+                      onChange={(e) => setFormData({ ...formData, weigh_in_time: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                    <span className="text-sm font-bold text-gray-700">All Day Event</span>
-                  </label>
+                  </div>
 
-                  <label className="flex items-center gap-2">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Check-in Time
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={formData.is_mandatory}
-                      onChange={(e) => setFormData({ ...formData, is_mandatory: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      type="time"
+                      value={formData.check_in_time}
+                      onChange={(e) => setFormData({ ...formData, check_in_time: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                    <span className="text-sm font-bold text-gray-700">Mandatory Event</span>
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Max Attendees
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.max_attendees}
-                    onChange={(e) => setFormData({ ...formData, max_attendees: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Leave empty for unlimited"
-                  />
+                  </div>
                 </div>
 
                 <div className="flex gap-4 pt-4">
