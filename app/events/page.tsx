@@ -37,6 +37,7 @@ interface EventType {
   name: string;
   color: string;
   icon: string;
+  sport_id?: string;
 }
 
 interface Location {

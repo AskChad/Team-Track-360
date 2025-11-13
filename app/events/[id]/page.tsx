@@ -63,6 +63,7 @@ interface EventType {
   id: string;
   name: string;
   color?: string;
+  sport_id?: string;
 }
 
 interface Location {
