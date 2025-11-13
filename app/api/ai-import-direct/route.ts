@@ -455,6 +455,8 @@ export async function POST(req: NextRequest) {
                     description: `${comp.style || ''} ${comp.divisions_included || ''}`.trim(),
                     event_date: comp.date,
                     status: 'scheduled',
+                    is_public: false,
+                    show_results_public: false,
                   });
 
                 if (eventError) {
