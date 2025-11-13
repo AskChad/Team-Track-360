@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, AuthError } from '@/lib/auth';
 
 /**
  * GET /api/teams/[id]/members
@@ -118,8 +118,10 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Team members GET error:', error);
+    // Log the actual error for debugging
+    console.error('Error details:', error.message, error.stack);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: error.message || 'Failed to fetch team members' },
       { status: 500 }
     );
   }
@@ -303,8 +305,10 @@ export async function POST(
     );
   } catch (error: any) {
     console.error('Team members POST error:', error);
+    // Log the actual error for debugging
+    console.error('Error details:', error.message, error.stack);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: error.message || 'Failed to add team member' },
       { status: 500 }
     );
   }

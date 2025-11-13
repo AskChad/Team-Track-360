@@ -143,9 +143,15 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Rosters GET error:', error);
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.statusCode }
+      );
+    }
     return NextResponse.json(
-      { success: false, error: error.message || 'Authentication failed' },
-      { status: 401 }
+      { success: false, error: error.message || 'Failed to fetch rosters' },
+      { status: 500 }
     );
   }
 }
@@ -238,9 +244,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Rosters POST error:', error);
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.statusCode }
+      );
+    }
     return NextResponse.json(
-      { success: false, error: error.message || 'Authentication failed' },
-      { status: 401 }
+      { success: false, error: error.message || 'Failed to create roster' },
+      { status: 500 }
     );
   }
 }
