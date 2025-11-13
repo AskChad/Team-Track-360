@@ -79,6 +79,15 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Event>>({});
 
+  // Helper function to convert ISO datetime to datetime-local format
+  const toDateTimeLocal = (isoString?: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().slice(0, 16);
+  };
+
   useEffect(() => {
     fetchEvent();
     fetchTeams();
@@ -397,36 +406,84 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* New DateTime Fields */}
+              <div className="space-y-4 pb-4 border-b border-gray-200">
+                <h3 className="text-sm font-bold text-gray-900">Event Schedule</h3>
+
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Event Date *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Arrival Time
+                    <span className="text-xs font-normal text-gray-500 ml-2">When participants should arrive</span>
+                  </label>
                   <input
-                    type="date"
+                    type="datetime-local"
+                    value={toDateTimeLocal(formData.arrival_time)}
+                    onChange={(e) => setFormData({ ...formData, arrival_time: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Start Date & Time *
+                    <span className="text-xs font-normal text-gray-500 ml-2">When the event starts</span>
+                  </label>
+                  <input
+                    type="datetime-local"
                     required
-                    value={formData.event_date || ''}
-                    onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                    value={toDateTimeLocal(formData.start_datetime)}
+                    onChange={(e) => setFormData({ ...formData, start_datetime: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Start Time</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    End Date & Time
+                    <span className="text-xs font-normal text-gray-500 ml-2">For multi-day events</span>
+                  </label>
                   <input
-                    type="time"
-                    value={formData.start_time || ''}
-                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                    type="datetime-local"
+                    value={toDateTimeLocal(formData.end_datetime)}
+                    onChange={(e) => setFormData({ ...formData, end_datetime: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">End Time</label>
-                  <input
-                    type="time"
-                    value={formData.end_time || ''}
-                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                  />
+              {/* Legacy Fields (Optional) */}
+              <div className="space-y-4 pt-4">
+                <h3 className="text-sm font-bold text-gray-500">Legacy Fields (Optional)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Event Date</label>
+                    <input
+                      type="date"
+                      value={formData.event_date || ''}
+                      onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      value={formData.start_time || ''}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">End Time</label>
+                    <input
+                      type="time"
+                      value={formData.end_time || ''}
+                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -510,14 +567,31 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                 </dd>
               </div>
 
-              {event.start_time && (
+              {event.arrival_time && (
+                <div>
+                  <dt className="text-sm font-bold text-gray-500 mb-1">Arrival Time</dt>
+                  <dd className="text-gray-900">{new Date(event.arrival_time).toLocaleString()}</dd>
+                </div>
+              )}
+
+              {event.start_datetime ? (
+                <div>
+                  <dt className="text-sm font-bold text-gray-500 mb-1">Start Date & Time</dt>
+                  <dd className="text-gray-900">{new Date(event.start_datetime).toLocaleString()}</dd>
+                </div>
+              ) : event.start_time && (
                 <div>
                   <dt className="text-sm font-bold text-gray-500 mb-1">Start Time</dt>
                   <dd className="text-gray-900">{event.start_time}</dd>
                 </div>
               )}
 
-              {event.end_time && (
+              {event.end_datetime ? (
+                <div>
+                  <dt className="text-sm font-bold text-gray-500 mb-1">End Date & Time</dt>
+                  <dd className="text-gray-900">{new Date(event.end_datetime).toLocaleString()}</dd>
+                </div>
+              ) : event.end_time && (
                 <div>
                   <dt className="text-sm font-bold text-gray-500 mb-1">End Time</dt>
                   <dd className="text-gray-900">{event.end_time}</dd>
