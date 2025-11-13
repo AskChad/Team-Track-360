@@ -99,6 +99,14 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       });
 
       if (!response.ok) {
+        // Handle 401 - redirect to login
+        if (response.status === 401) {
+          console.log('401 Unauthorized - redirecting to login');
+          localStorage.removeItem('auth_token'); // Clear invalid token
+          router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+          return;
+        }
+
         const data = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
         setError(data.error || `Failed to load event (${response.status})`);
         setLoading(false);
