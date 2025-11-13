@@ -228,14 +228,24 @@ export async function POST(req: NextRequest) {
         let locationId = null;
         if (comp.venue || comp.street_address || comp.city) {
           // Check for duplicate location (by name, city, state)
-          const { data: existingLocation } = await supabaseAdmin
+          // Only check if we have meaningful values (not null/empty)
+          let duplicateQuery = supabaseAdmin
             .from('locations')
             .select('id')
-            .eq('name', comp.venue || '')
-            .eq('city', comp.city || '')
-            .eq('state', comp.state || '')
-            .limit(1)
-            .maybeSingle();
+            .eq('organization_id', organizationId)
+            .limit(1);
+
+          if (comp.venue) {
+            duplicateQuery = duplicateQuery.eq('name', comp.venue);
+          }
+          if (comp.city) {
+            duplicateQuery = duplicateQuery.eq('city', comp.city);
+          }
+          if (comp.state) {
+            duplicateQuery = duplicateQuery.eq('state', comp.state);
+          }
+
+          const { data: existingLocation } = await duplicateQuery.maybeSingle();
 
           if (existingLocation) {
             console.log(`Location already exists: ${comp.venue} - using existing`);
@@ -256,7 +266,10 @@ export async function POST(req: NextRequest) {
               .select('id')
               .single();
 
-            if (!locationError && newLocation) {
+            if (locationError) {
+              console.error(`Error creating location ${comp.venue}:`, locationError);
+              errors.push(`Location ${comp.venue}: ${locationError.message}`);
+            } else if (newLocation) {
               locationId = newLocation.id;
               locationsCreated++;
               console.log(`Created location: ${comp.venue}`);
@@ -332,18 +345,23 @@ export async function POST(req: NextRequest) {
       console.log(`Creating events for ${competitionIds.length} competitions...`);
 
       // Get all teams in this organization
-      const { data: orgTeams } = await supabaseAdmin
+      const { data: orgTeams, error: teamsError } = await supabaseAdmin
         .from('teams')
         .select('id')
         .eq('organization_id', organizationId)
         .eq('is_active', true);
 
-      if (!orgTeams || orgTeams.length === 0) {
+      if (teamsError) {
+        console.error('Error fetching teams:', teamsError);
+        errors.push(`Failed to fetch teams: ${teamsError.message}`);
+      } else if (!orgTeams || orgTeams.length === 0) {
         console.log('No active teams found in organization - skipping event creation');
+        errors.push('No active teams found - events not created. Please create at least one team first.');
       } else {
+        console.log(`Found ${orgTeams.length} active teams for event creation`);
         // Get or create a season for this organization
         const currentYear = new Date().getFullYear();
-        const { data: season } = await supabaseAdmin
+        const { data: season, error: seasonFetchError } = await supabaseAdmin
           .from('seasons')
           .select('id')
           .eq('organization_id', organizationId)
@@ -352,9 +370,13 @@ export async function POST(req: NextRequest) {
 
         let seasonId = season?.id;
 
-        if (!seasonId) {
+        if (seasonFetchError) {
+          console.error('Error fetching season:', seasonFetchError);
+          errors.push(`Failed to fetch season: ${seasonFetchError.message}`);
+        } else if (!seasonId) {
           // Create season
-          const { data: newSeason } = await supabaseAdmin
+          console.log(`Creating ${currentYear} Season for organization...`);
+          const { data: newSeason, error: seasonCreateError } = await supabaseAdmin
             .from('seasons')
             .insert({
               organization_id: organizationId,
@@ -364,7 +386,16 @@ export async function POST(req: NextRequest) {
             })
             .select('id')
             .single();
-          seasonId = newSeason?.id;
+
+          if (seasonCreateError) {
+            console.error('Error creating season:', seasonCreateError);
+            errors.push(`Failed to create season: ${seasonCreateError.message}`);
+          } else {
+            seasonId = newSeason?.id;
+            console.log(`Created season with ID: ${seasonId}`);
+          }
+        } else {
+          console.log(`Using existing season: ${seasonId}`);
         }
 
         if (seasonId) {
