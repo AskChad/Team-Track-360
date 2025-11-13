@@ -95,16 +95,27 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        setError(data.error || `Failed to load event (${response.status})`);
+        setLoading(false);
+        return;
+      }
+
       const data = await response.json();
-      if (data.success) {
+      console.log('Event data received:', data);
+
+      if (data.success && data.data && data.data.event) {
         setEvent(data.data.event);
         setFormData(data.data.event);
       } else {
-        setError(data.error);
+        console.error('Invalid response structure:', data);
+        setError(data.error || 'Event not found');
       }
       setLoading(false);
-    } catch (err) {
-      setError('Failed to load event');
+    } catch (err: any) {
+      console.error('Fetch event error:', err);
+      setError(`Failed to load event: ${err.message}`);
       setLoading(false);
     }
   };
@@ -211,8 +222,13 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   if (!event) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Event Not Found</h2>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
           <Link href="/events" className="text-wrestling-blue hover:text-wrestling-navy">
             ← Back to Events
           </Link>
