@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
     }
 
     let insertedCount = 0;
-    let skippedCount = 0;
+    let updatedCount = 0;
     let locationsCreated = 0;
     let eventsCreated = 0;
     const errors: string[] = [];
@@ -298,8 +298,33 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
 
         if (existingComp) {
-          console.log(`Competition already exists: ${comp.event_name} - skipping`);
-          skippedCount++;
+          console.log(`Competition already exists: ${comp.event_name} - updating`);
+
+          // Update existing competition
+          const { error: updateError } = await supabaseAdmin
+            .from('competitions')
+            .update({
+              sport_id: sportId,
+              description: descriptionParts.join('\n'),
+              competition_type: 'tournament',
+              default_location_id: locationId,
+              contact_first_name: contactFirstName,
+              contact_last_name: contactLastName,
+              contact_email: comp.contact_email || null,
+              contact_phone: comp.contact_phone || null,
+              divisions: comp.divisions_included || null,
+            })
+            .eq('id', existingComp.id);
+
+          if (updateError) {
+            console.error(`Error updating competition ${comp.event_name}:`, updateError);
+            errors.push(`${comp.event_name}: ${updateError.message}`);
+          } else {
+            updatedCount++;
+            console.log(`Updated competition: ${comp.event_name}`);
+            competitionIds.push(existingComp.id);
+            competitionDataMap.set(existingComp.id, comp);
+          }
           continue;
         }
 
@@ -490,9 +515,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const message = createEvents
-      ? `Processed ${competitionsData.length} competitions: ${insertedCount} inserted, ${skippedCount} skipped. Created ${eventsCreated} events.`
-      : `Processed ${competitionsData.length} competitions: ${insertedCount} inserted, ${skippedCount} skipped (duplicates)`;
+    const messageParts = [`Processed ${competitionsData.length} competitions:`];
+    if (insertedCount > 0) messageParts.push(`${insertedCount} created`);
+    if (updatedCount > 0) messageParts.push(`${updatedCount} updated`);
+    if (createEvents && eventsCreated > 0) messageParts.push(`${eventsCreated} events created`);
+
+    const message = messageParts.join(', ');
 
     return NextResponse.json({
       success: true,
@@ -500,7 +528,7 @@ export async function POST(req: NextRequest) {
       data: {
         total: competitionsData.length,
         inserted: insertedCount,
-        skipped: skippedCount,
+        updated: updatedCount,
         locationsCreated,
         eventsCreated,
         errors: errors.length > 0 ? errors : undefined,

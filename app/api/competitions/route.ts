@@ -114,49 +114,108 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create competition
-    const { data: competition, error } = await supabase
+    // Check for existing competition with same name in organization
+    const { data: existingComp } = await supabaseAdmin
       .from('competitions')
-      .insert({
-        organization_id,
-        sport_id,
-        name,
-        description,
-        competition_type,
-        default_location_id,
-        is_recurring: is_recurring || false,
-        recurrence_rule,
-      })
-      .select(`
-        *,
-        parent_organizations (
-          id,
-          name
-        ),
-        sports (
-          id,
-          name
-        ),
-        locations (
-          id,
-          name,
-          city,
-          state
-        )
-      `)
-      .single();
+      .select('id')
+      .eq('name', name)
+      .eq('organization_id', organization_id)
+      .maybeSingle();
 
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to create competition' },
-        { status: 500 }
-      );
+    let competition;
+    let wasUpdated = false;
+
+    if (existingComp) {
+      // Update existing competition
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from('competitions')
+        .update({
+          sport_id,
+          description,
+          competition_type,
+          default_location_id,
+          is_recurring: is_recurring || false,
+          recurrence_rule,
+        })
+        .eq('id', existingComp.id)
+        .select(`
+          *,
+          parent_organizations (
+            id,
+            name
+          ),
+          sports (
+            id,
+            name
+          ),
+          locations (
+            id,
+            name,
+            city,
+            state
+          )
+        `)
+        .single();
+
+      if (updateError) {
+        console.error('Database error:', updateError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to update competition' },
+          { status: 500 }
+        );
+      }
+
+      competition = updated;
+      wasUpdated = true;
+    } else {
+      // Create new competition
+      const { data: created, error: createError } = await supabase
+        .from('competitions')
+        .insert({
+          organization_id,
+          sport_id,
+          name,
+          description,
+          competition_type,
+          default_location_id,
+          is_recurring: is_recurring || false,
+          recurrence_rule,
+        })
+        .select(`
+          *,
+          parent_organizations (
+            id,
+            name
+          ),
+          sports (
+            id,
+            name
+          ),
+          locations (
+            id,
+            name,
+            city,
+            state
+          )
+        `)
+        .single();
+
+      if (createError) {
+        console.error('Database error:', createError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to create competition' },
+          { status: 500 }
+        );
+      }
+
+      competition = created;
     }
 
     return NextResponse.json({
       success: true,
       data: competition,
+      message: wasUpdated ? 'Competition already existed and was updated' : 'Competition created successfully',
+      wasUpdated,
     });
   } catch (error: any) {
     console.error('Competitions POST error:', error);
