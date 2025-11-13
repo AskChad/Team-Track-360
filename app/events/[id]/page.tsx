@@ -15,6 +15,9 @@ interface Event {
   event_date: string;
   start_time?: string;
   end_time?: string;
+  arrival_time?: string;        // New: When participants should arrive
+  start_datetime?: string;      // New: Full start date/time
+  end_datetime?: string;        // New: Full end date/time (for multi-day events)
   location_id?: string;
   status: string;
   weigh_in_time?: string;
