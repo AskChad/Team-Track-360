@@ -6,16 +6,22 @@ import Link from 'next/link';
 
 interface Event {
   id: string;
+  competition_id?: string;
   team_id: string;
-  title: string;
+  season_id: string;
+  name: string;
   description?: string;
   event_type_id?: string;
-  location_id?: string;
-  start_time: string;
+  event_date: string;
+  start_time?: string;
   end_time?: string;
-  all_day: boolean;
-  is_mandatory: boolean;
-  max_attendees?: number;
+  location_id?: string;
+  status: string;
+  weigh_in_time?: string;
+  check_in_time?: string;
+  registration_deadline?: string;
+  is_public: boolean;
+  show_results_public: boolean;
   created_at: string;
   updated_at: string;
   teams?: {
@@ -91,8 +97,8 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
       const data = await response.json();
       if (data.success) {
-        setEvent(data.data);
-        setFormData(data.data);
+        setEvent(data.data.event);
+        setFormData(data.data.event);
       } else {
         setError(data.error);
       }
@@ -166,7 +172,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
       const data = await response.json();
       if (data.success) {
-        setEvent(data.data);
+        setEvent(data.data.event);
         setIsEditing(false);
       } else {
         setError(data.error);
@@ -229,7 +235,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
               <Link href="/events" className="text-gray-200 hover:text-white mb-2 inline-block">
                 ← Back to Events
               </Link>
-              <h1 className="text-3xl font-bold">{event.title}</h1>
+              <h1 className="text-3xl font-bold">{event.name}</h1>
               <div className="flex gap-2 mt-2">
                 {event.event_types && (
                   <span
@@ -239,16 +245,15 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                     {event.event_types.name}
                   </span>
                 )}
-                {event.is_mandatory && (
-                  <span className="inline-block px-2 py-1 text-sm font-bold rounded bg-red-500">
-                    Mandatory
-                  </span>
-                )}
-                {event.all_day && (
-                  <span className="inline-block px-2 py-1 text-sm font-bold rounded bg-wrestling-teal bg-opacity-50">
-                    All Day
-                  </span>
-                )}
+                <span className={`inline-block px-2 py-1 text-sm font-bold rounded ${
+                  event.status === 'scheduled' ? 'bg-blue-500' :
+                  event.status === 'in_progress' ? 'bg-green-500' :
+                  event.status === 'completed' ? 'bg-gray-500' :
+                  event.status === 'cancelled' ? 'bg-red-500' :
+                  'bg-yellow-500'
+                }`}>
+                  {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                </span>
               </div>
             </div>
             <div className="flex gap-4">
@@ -311,12 +316,12 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Event Title *</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Event Name *</label>
                 <input
                   type="text"
                   required
-                  value={formData.title || ''}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                 />
               </div>
@@ -365,66 +370,57 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Start Date/Time *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Event Date *</label>
                   <input
-                    type="datetime-local"
+                    type="date"
                     required
-                    value={formData.start_time ? new Date(formData.start_time).toISOString().slice(0, 16) : ''}
+                    value={formData.event_date || ''}
+                    onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Start Time</label>
+                  <input
+                    type="time"
+                    value={formData.start_time || ''}
                     onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">End Date/Time</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">End Time</label>
                   <input
-                    type="datetime-local"
-                    value={formData.end_time ? new Date(formData.end_time).toISOString().slice(0, 16) : ''}
+                    type="time"
+                    value={formData.end_time || ''}
                     onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Max Attendees</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.max_attendees || ''}
-                  onChange={(e) => setFormData({ ...formData, max_attendees: e.target.value ? parseInt(e.target.value) : undefined })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                  placeholder="Leave empty for unlimited"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Weigh-in Time</label>
                   <input
-                    type="checkbox"
-                    id="all_day_edit"
-                    checked={formData.all_day || false}
-                    onChange={(e) => setFormData({ ...formData, all_day: e.target.checked })}
-                    className="w-4 h-4 text-wrestling-blue rounded focus:ring-wrestling-blue"
+                    type="time"
+                    value={formData.weigh_in_time || ''}
+                    onChange={(e) => setFormData({ ...formData, weigh_in_time: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                   />
-                  <label htmlFor="all_day_edit" className="text-sm font-bold text-gray-700">
-                    All-day event
-                  </label>
                 </div>
-
-                <div className="flex items-center gap-2">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Check-in Time</label>
                   <input
-                    type="checkbox"
-                    id="is_mandatory_edit"
-                    checked={formData.is_mandatory || false}
-                    onChange={(e) => setFormData({ ...formData, is_mandatory: e.target.checked })}
-                    className="w-4 h-4 text-wrestling-blue rounded focus:ring-wrestling-blue"
+                    type="time"
+                    value={formData.check_in_time || ''}
+                    onChange={(e) => setFormData({ ...formData, check_in_time: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                   />
-                  <label htmlFor="is_mandatory_edit" className="text-sm font-bold text-gray-700">
-                    Mandatory attendance
-                  </label>
                 </div>
               </div>
 
@@ -479,24 +475,25 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
               )}
 
               <div>
-                <dt className="text-sm font-bold text-gray-500 mb-1">Start Time</dt>
+                <dt className="text-sm font-bold text-gray-500 mb-1">Event Date</dt>
                 <dd className="text-gray-900">
-                  {new Date(event.start_time).toLocaleString('en-US', {
+                  {new Date(event.event_date).toLocaleDateString('en-US', {
                     dateStyle: 'full',
-                    timeStyle: 'short',
                   })}
                 </dd>
               </div>
 
+              {event.start_time && (
+                <div>
+                  <dt className="text-sm font-bold text-gray-500 mb-1">Start Time</dt>
+                  <dd className="text-gray-900">{event.start_time}</dd>
+                </div>
+              )}
+
               {event.end_time && (
                 <div>
                   <dt className="text-sm font-bold text-gray-500 mb-1">End Time</dt>
-                  <dd className="text-gray-900">
-                    {new Date(event.end_time).toLocaleString('en-US', {
-                      dateStyle: 'full',
-                      timeStyle: 'short',
-                    })}
-                  </dd>
+                  <dd className="text-gray-900">{event.end_time}</dd>
                 </div>
               )}
 
@@ -530,32 +527,32 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                 </div>
               )}
 
-              {event.max_attendees && (
+              {event.weigh_in_time && (
                 <div>
-                  <dt className="text-sm font-bold text-gray-500 mb-1">Max Attendees</dt>
-                  <dd className="text-gray-900">{event.max_attendees}</dd>
+                  <dt className="text-sm font-bold text-gray-500 mb-1">Weigh-in Time</dt>
+                  <dd className="text-gray-900">{event.weigh_in_time}</dd>
+                </div>
+              )}
+
+              {event.check_in_time && (
+                <div>
+                  <dt className="text-sm font-bold text-gray-500 mb-1">Check-in Time</dt>
+                  <dd className="text-gray-900">{event.check_in_time}</dd>
                 </div>
               )}
 
               <div>
-                <dt className="text-sm font-bold text-gray-500 mb-1">All Day Event</dt>
+                <dt className="text-sm font-bold text-gray-500 mb-1">Status</dt>
                 <dd className="text-gray-900">
-                  {event.all_day ? (
-                    <span className="text-green-600">Yes</span>
-                  ) : (
-                    <span className="text-gray-400">No</span>
-                  )}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm font-bold text-gray-500 mb-1">Mandatory</dt>
-                <dd className="text-gray-900">
-                  {event.is_mandatory ? (
-                    <span className="text-red-600">Yes</span>
-                  ) : (
-                    <span className="text-gray-400">No</span>
-                  )}
+                  <span className={`inline-block px-2 py-1 text-sm font-bold rounded ${
+                    event.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                    event.status === 'in_progress' ? 'bg-green-100 text-green-800' :
+                    event.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                    event.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                  </span>
                 </dd>
               </div>
             </dl>

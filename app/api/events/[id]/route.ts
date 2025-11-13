@@ -192,18 +192,20 @@ export async function PUT(
     // Prepare update data
     const updateData: any = {};
     const allowedFields = [
-      'title',
+      'name',
       'description',
       'event_type_id',
-      'location_id',
+      'event_date',
       'start_time',
       'end_time',
-      'all_day',
-      'is_mandatory',
-      'max_attendees',
-      'rsvp_deadline',
+      'location_id',
+      'status',
+      'weigh_in_time',
+      'check_in_time',
+      'registration_deadline',
+      'is_public',
+      'show_results_public',
       'competition_id',
-      'opponent_team_id',
     ];
 
     for (const field of allowedFields) {
