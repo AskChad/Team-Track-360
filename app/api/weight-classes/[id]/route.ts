@@ -1,73 +1,17 @@
 /**
- * Individual Weight Class API Routes
+ * Weight Class by ID API
  *
- * GET /api/weight-classes/[id] - Get single weight class
- * PUT /api/weight-classes/[id] - Update weight class
- * DELETE /api/weight-classes/[id] - Delete weight class
+ * PUT /api/weight-classes/[id] - Update a weight class
+ * DELETE /api/weight-classes/[id] - Delete a weight class
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    const user = requireAuth(authHeader);
-
-    // Get user's admin roles
-    const { data: adminRoles } = await supabaseAdmin
-      .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', user.userId);
-
-    const hasAdminAccess = adminRoles?.some(r =>
-      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
-    );
-
-    if (!hasAdminAccess) {
-      return NextResponse.json(
-        { success: false, error: 'Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
-    // Fetch the weight class
-    const { data: weightClass, error } = await supabaseAdmin
-      .from('weight_classes')
-      .select(`
-        *,
-        sports (
-          id,
-          name
-        )
-      `)
-      .eq('id', params.id)
-      .single();
-
-    if (error || !weightClass) {
-      return NextResponse.json(
-        { success: false, error: 'Weight class not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: weightClass,
-    });
-  } catch (error: any) {
-    console.error('Weight class GET error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Authentication failed' },
-      { status: 401 }
-    );
-  }
-}
-
+/**
+ * PUT - Update a weight class
+ */
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -75,6 +19,23 @@ export async function PUT(
   try {
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
+
+    // Check if user is platform admin
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type')
+      .eq('user_id', user.userId);
+
+    const isPlatformAdmin = adminRoles?.some(r =>
+      ['platform_admin', 'super_admin'].includes(r.role_type)
+    );
+
+    if (!isPlatformAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Only platform admins can update weight classes' },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const {
@@ -86,49 +47,31 @@ export async function PUT(
       city,
       expiration_date,
       notes,
-      is_active,
+      is_active
     } = body;
 
-    // Check if user has admin permission
-    const { data: adminRoles } = await supabaseAdmin
-      .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', user.userId);
-
-    const hasAdminAccess = adminRoles?.some(r =>
-      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
-    );
-
-    if (!hasAdminAccess) {
-      return NextResponse.json(
-        { success: false, error: 'Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
     // Update weight class
-    const updateData: any = {};
-    if (sport_id !== undefined) updateData.sport_id = sport_id;
-    if (name !== undefined) updateData.name = name;
-    if (weight !== undefined) updateData.weight = parseFloat(weight);
-    if (age_group !== undefined) updateData.age_group = age_group;
-    if (state !== undefined) updateData.state = state;
-    if (city !== undefined) updateData.city = city;
-    if (expiration_date !== undefined) updateData.expiration_date = expiration_date;
-    if (notes !== undefined) updateData.notes = notes;
-    if (is_active !== undefined) updateData.is_active = is_active;
-
     const { data: weightClass, error } = await supabaseAdmin
       .from('weight_classes')
-      .update(updateData)
+      .update({
+        ...(sport_id !== undefined && { sport_id }),
+        ...(name !== undefined && { name }),
+        ...(weight !== undefined && { weight: parseFloat(weight) }),
+        ...(age_group !== undefined && { age_group }),
+        ...(state !== undefined && { state }),
+        ...(city !== undefined && { city }),
+        ...(expiration_date !== undefined && { expiration_date }),
+        ...(notes !== undefined && { notes }),
+        ...(is_active !== undefined && { is_active }),
+      })
       .eq('id', params.id)
-      .select(`
+      .select(\`
         *,
-        sports (
+        sports:sport_id (
           id,
           name
         )
-      `)
+      \`)
       .single();
 
     if (error) {
@@ -141,17 +84,22 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: weightClass,
+      message: 'Weight class updated successfully',
+      data: weightClass
     });
+
   } catch (error: any) {
     console.error('Weight class PUT error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Authentication failed' },
-      { status: 401 }
+      { success: false, error: error.message || 'Failed to update weight class' },
+      { status: 500 }
     );
   }
 }
 
+/**
+ * DELETE - Delete a weight class
+ */
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -160,31 +108,30 @@ export async function DELETE(
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
-    // Check if user has admin permission
+    // Check if user is platform admin
     const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
       .select('role_type')
       .eq('user_id', user.userId);
 
-    const hasAdminAccess = adminRoles?.some(r =>
-      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
+    const isPlatformAdmin = adminRoles?.some(r =>
+      ['platform_admin', 'super_admin'].includes(r.role_type)
     );
 
-    if (!hasAdminAccess) {
+    if (!isPlatformAdmin) {
       return NextResponse.json(
-        { success: false, error: 'Insufficient permissions' },
+        { success: false, error: 'Only platform admins can delete weight classes' },
         { status: 403 }
       );
     }
 
-    // Delete weight class
     const { error } = await supabaseAdmin
       .from('weight_classes')
       .delete()
       .eq('id', params.id);
 
     if (error) {
-      console.error('Weight class deletion error:', error);
+      console.error('Weight class delete error:', error);
       return NextResponse.json(
         { success: false, error: 'Failed to delete weight class' },
         { status: 500 }
@@ -193,13 +140,14 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: 'Weight class deleted successfully',
+      message: 'Weight class deleted successfully'
     });
+
   } catch (error: any) {
     console.error('Weight class DELETE error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Authentication failed' },
-      { status: 401 }
+      { success: false, error: error.message || 'Failed to delete weight class' },
+      { status: 500 }
     );
   }
 }

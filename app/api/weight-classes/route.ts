@@ -1,75 +1,36 @@
 /**
- * Weight Classes API Routes
+ * Weight Classes API
  *
- * GET /api/weight-classes - List weight classes (filtered by org for org admins)
- * POST /api/weight-classes - Create new weight class (org admins and platform admins)
+ * GET /api/weight-classes - List all weight classes
+ * POST /api/weight-classes - Create a new weight class
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 
+/**
+ * GET - List all weight classes
+ */
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
 
-    const { searchParams } = new URL(req.url);
-    const sportId = searchParams.get('sport_id');
-    const isActive = searchParams.get('is_active');
-
-    // Get user's admin roles
-    const { data: adminRoles, error: rolesError } = await supabaseAdmin
-      .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', user.userId);
-
-    if (rolesError) {
-      console.error('Error fetching admin roles:', rolesError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch weight classes' },
-        { status: 500 }
-      );
-    }
-
-    // Check user has admin access (org admin or platform admin)
-    const hasAdminAccess = adminRoles?.some(r =>
-      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
-    );
-
-    if (!hasAdminAccess) {
-      return NextResponse.json({
-        success: false,
-        error: 'Insufficient permissions. Must be org admin or platform admin.',
-      }, { status: 403 });
-    }
-
-    // Build query - all admins see all weight classes (sport-specific, not org-specific)
-    let query = supabaseAdmin
+    // Get all weight classes with sport info
+    const { data: weightClasses, error } = await supabaseAdmin
       .from('weight_classes')
-      .select(`
+      .select(\`
         *,
-        sports (
+        sports:sport_id (
           id,
           name
         )
-      `)
-      .order('sport_id')
-      .order('weight');
-
-    // Apply filters
-    if (sportId) {
-      query = query.eq('sport_id', sportId);
-    }
-
-    if (isActive !== null && isActive !== undefined) {
-      query = query.eq('is_active', isActive === 'true');
-    }
-
-    const { data: weightClasses, error } = await query;
+      \`)
+      .order('weight', { ascending: true });
 
     if (error) {
-      console.error('Database error:', error);
+      console.error('Weight classes fetch error:', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch weight classes' },
         { status: 500 }
@@ -78,24 +39,42 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: {
-        weight_classes: weightClasses,
-        count: weightClasses?.length || 0,
-      },
+      data: weightClasses || []
     });
+
   } catch (error: any) {
     console.error('Weight classes GET error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Authentication failed' },
-      { status: 401 }
+      { success: false, error: error.message || 'Failed to fetch weight classes' },
+      { status: 500 }
     );
   }
 }
 
+/**
+ * POST - Create a new weight class
+ */
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const user = requireAuth(authHeader);
+
+    // Check if user is platform admin
+    const { data: adminRoles } = await supabaseAdmin
+      .from('admin_roles')
+      .select('role_type')
+      .eq('user_id', user.userId);
+
+    const isPlatformAdmin = adminRoles?.some(r =>
+      ['platform_admin', 'super_admin'].includes(r.role_type)
+    );
+
+    if (!isPlatformAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Only platform admins can create weight classes' },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const {
@@ -107,30 +86,14 @@ export async function POST(req: NextRequest) {
       city,
       expiration_date,
       notes,
+      is_active
     } = body;
 
     // Validate required fields
-    if (!sport_id || !name || !weight) {
+    if (!sport_id || !name || weight === undefined || weight === null) {
       return NextResponse.json(
-        { success: false, error: 'Sport, name, and weight are required' },
+        { success: false, error: 'sport_id, name, and weight are required' },
         { status: 400 }
-      );
-    }
-
-    // Check if user has admin permission (org_admin or platform_admin)
-    const { data: adminRoles } = await supabaseAdmin
-      .from('admin_roles')
-      .select('role_type')
-      .eq('user_id', user.userId);
-
-    const hasAdminAccess = adminRoles?.some(r =>
-      ['org_admin', 'platform_admin', 'super_admin'].includes(r.role_type)
-    );
-
-    if (!hasAdminAccess) {
-      return NextResponse.json(
-        { success: false, error: 'Insufficient permissions. Must be org admin or platform admin.' },
-        { status: 403 }
       );
     }
 
@@ -141,20 +104,20 @@ export async function POST(req: NextRequest) {
         sport_id,
         name,
         weight: parseFloat(weight),
-        age_group,
-        state,
-        city,
-        expiration_date,
-        notes,
-        created_by: user.userId,
+        age_group: age_group || null,
+        state: state || null,
+        city: city || null,
+        expiration_date: expiration_date || null,
+        notes: notes || null,
+        is_active: is_active !== undefined ? is_active : true,
       })
-      .select(`
+      .select(\`
         *,
-        sports (
+        sports:sport_id (
           id,
           name
         )
-      `)
+      \`)
       .single();
 
     if (error) {
@@ -167,13 +130,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: weightClass,
+      message: 'Weight class created successfully',
+      data: weightClass
     });
+
   } catch (error: any) {
     console.error('Weight classes POST error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Authentication failed' },
-      { status: 401 }
+      { success: false, error: error.message || 'Failed to create weight class' },
+      { status: 500 }
     );
   }
 }
