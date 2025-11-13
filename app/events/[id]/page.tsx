@@ -453,8 +453,9 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Event Type</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Event Type *</label>
                   <select
+                    required
                     value={formData.event_type_id || ''}
                     onChange={(e) => setFormData({ ...formData, event_type_id: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
