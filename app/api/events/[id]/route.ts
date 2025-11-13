@@ -91,6 +91,7 @@ export async function GET(
     }
 
     // Check if user has access to this event
+    // Check admin roles
     const { data: adminRoles } = await supabaseAdmin
       .from('admin_roles')
       .select('role_type, team_id, organization_id')
@@ -100,9 +101,20 @@ export async function GET(
     const isOrgAdmin = adminRoles?.some(r => r.role_type === 'org_admin' && r.organization_id === (event.teams as any)?.organization_id);
     const isTeamAdmin = adminRoles?.some(r => r.role_type === 'team_admin' && r.team_id === event.team_id);
 
-    if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin) {
+    // Check team membership (allow any team member to view their team's events)
+    const { data: teamMembership } = await supabaseAdmin
+      .from('team_members')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('team_id', event.team_id)
+      .eq('status', 'active')
+      .single();
+
+    const isTeamMember = !!teamMembership;
+
+    if (!isPlatformAdmin && !isOrgAdmin && !isTeamAdmin && !isTeamMember) {
       return NextResponse.json(
-        { success: false, error: 'Access denied' },
+        { success: false, error: 'Access denied. You must be a member of this team to view this event.' },
         { status: 403 }
       );
     }
