@@ -26,11 +26,16 @@ The Team Track 360 system is designed to support **multiple sports** with sport-
 - **`team_members`** table - Who is on the TEAM
 - This is the **permanent roster** of people associated with a team
 - Includes:
-  - Athletes
+  - Athletes (can compete in events)
   - Coaches
   - Staff
-  - Parents/Volunteers
-- Fields: `user_id`, `role`, `jersey_number`, `position`, `status`
+  - Parents/Guardians (receive updates but don't compete)
+  - Family Members (siblings, grandparents, etc.)
+  - Supporters/Fans
+  - Booster Club Members
+  - Alumni
+- Fields: `user_id`, `role_id`, `jersey_number`, `position`, `status`
+- Uses the **`member_roles`** table for role definitions
 
 ### Event Rosters (Temporary Lineups)
 - **`event_rosters`** + **`wrestling_roster_members`** - Who is competing in a specific EVENT
@@ -46,6 +51,30 @@ The Team Track 360 system is designed to support **multiple sports** with sport-
 3. **Build Event Roster** → Select which team members will compete in THIS event
 4. **Track Results** → Record outcomes for those roster members
 
+## Member Roles System
+
+### Role Categories
+- **Athlete** - Team athletes who can compete in events
+- **Coach** - Head coaches, assistant coaches, volunteer coaches
+- **Staff** - Team managers, trainers, equipment managers, photographers
+- **Family** - Parents/guardians, family members (siblings, grandparents, etc.)
+- **Supporter** - Team supporters, booster club, alumni
+
+### Generic vs Sport-Specific Roles
+- **Generic Roles** (`sport_id = NULL`)
+  - Available for ALL sports
+  - Examples: "Parent/Guardian", "Family Member", "Team Supporter", "Head Coach"
+  - Show up in role dropdowns for any team regardless of sport
+
+- **Sport-Specific Roles** (`sport_id = <sport_uuid>`)
+  - Only available for that specific sport
+  - Examples: "Wrestling Coach", "Football Offensive Coordinator"
+  - Only show up for teams of that sport
+
+### Key Role Properties
+- **`can_compete`** - Whether this role can be added to event rosters (true for athletes, false for parents/supporters)
+- **`can_receive_updates`** - Whether members get team notifications (true for most roles)
+
 ## Key Differences
 
 | Team Members | Event Rosters |
@@ -54,3 +83,4 @@ The Team Track 360 system is designed to support **multiple sports** with sport-
 | All team members | Selected athletes for this event |
 | `team_members` table | `event_rosters` + `wrestling_roster_members` |
 | "Who's on the team?" | "Who's competing today?" |
+| Includes parents, supporters | Only competing athletes |
