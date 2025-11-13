@@ -12,6 +12,11 @@ interface Sport {
   name: string;
 }
 
+interface Team {
+  id: string;
+  name: string;
+}
+
 interface UploadCompetitionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,14 +37,19 @@ export default function UploadCompetitionModal({
   const [createEvents, setCreateEvents] = useState(false);
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
   const [orgSports, setOrgSports] = useState<Sport[]>([]);
+  const [orgTeams, setOrgTeams] = useState<Team[]>([]);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
 
   // Fetch organization sports when uploadOrgId changes
   useEffect(() => {
     if (uploadOrgId) {
       fetchOrgSports(uploadOrgId);
+      fetchOrgTeams(uploadOrgId);
     } else {
       setOrgSports([]);
       setSelectedSports([]);
+      setOrgTeams([]);
+      setSelectedTeamIds([]);
     }
   }, [uploadOrgId]);
 
@@ -68,6 +78,43 @@ export default function UploadCompetitionModal({
     }
   };
 
+  const fetchOrgTeams = async (organizationId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/teams?organization_id=${organizationId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        const teams = data.data || [];
+        setOrgTeams(teams);
+
+        // Auto-select all teams (default checked)
+        setSelectedTeamIds(teams.map((t: Team) => t.id));
+      }
+    } catch (err) {
+      console.error('Failed to load organization teams');
+      setOrgTeams([]);
+      setSelectedTeamIds([]);
+    }
+  };
+
+  const handleTeamToggle = (teamId: string) => {
+    setSelectedTeamIds(prev =>
+      prev.includes(teamId)
+        ? prev.filter(id => id !== teamId)
+        : [...prev, teamId]
+    );
+  };
+
+  const handleTeamSelectAll = () => {
+    setSelectedTeamIds(orgTeams.map(t => t.id));
+  };
+
+  const handleTeamDeselectAll = () => {
+    setSelectedTeamIds([]);
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -86,6 +133,11 @@ export default function UploadCompetitionModal({
       formData.append('entity_type', 'competitions');
       formData.append('organization_id', uploadOrgId);
       formData.append('create_events', createEvents ? 'true' : 'false');
+
+      // If creating events, send selected team IDs (only if teams are selected)
+      if (createEvents && selectedTeamIds.length > 0) {
+        formData.append('team_ids', JSON.stringify(selectedTeamIds));
+      }
 
       const response = await fetch('/api/ai-import-direct', {
         method: 'POST',
@@ -139,6 +191,8 @@ export default function UploadCompetitionModal({
     setCreateEvents(false);
     setOrgSports([]);
     setSelectedSports([]);
+    setOrgTeams([]);
+    setSelectedTeamIds([]);
     onClose();
   };
 
@@ -258,6 +312,70 @@ export default function UploadCompetitionModal({
                 </p>
               </label>
             </div>
+
+            {/* Team selection - only show when createEvents is checked */}
+            {createEvents && orgTeams.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-sm text-green-900">Select Teams for Events</h3>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTeamSelectAll}
+                      className="text-xs text-green-700 hover:text-green-900 font-medium"
+                      disabled={uploadLoading}
+                    >
+                      Select All
+                    </button>
+                    <span className="text-gray-400">|</span>
+                    <button
+                      type="button"
+                      onClick={handleTeamDeselectAll}
+                      className="text-xs text-green-700 hover:text-green-900 font-medium"
+                      disabled={uploadLoading}
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-green-700 mb-3">
+                  Events will be created for selected teams. Default: all teams selected.
+                </p>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                  {orgTeams.map(team => (
+                    <label
+                      key={team.id}
+                      className="flex items-center gap-2 p-2 bg-white rounded border border-green-200 hover:bg-green-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTeamIds.includes(team.id)}
+                        onChange={() => handleTeamToggle(team.id)}
+                        disabled={uploadLoading}
+                        className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                      />
+                      <span className="text-sm text-gray-900">{team.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedTeamIds.length === 0 && (
+                  <p className="mt-2 text-xs text-orange-700 font-medium">
+                    ⚠️ No teams selected - events will not be created
+                  </p>
+                )}
+              </div>
+            )}
+
+            {createEvents && orgTeams.length === 0 && uploadOrgId && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className="text-sm text-orange-900 font-medium">
+                  ⚠️ No teams found in this organization
+                </p>
+                <p className="text-xs text-orange-700 mt-1">
+                  Events cannot be created without teams. Please create at least one team first.
+                </p>
+              </div>
+            )}
 
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
               <h3 className="font-bold text-sm text-purple-900 mb-2">Direct AI Vision Processing:</h3>

@@ -88,6 +88,17 @@ export async function POST(req: NextRequest) {
     const entityType = formData.get('entity_type') as string;
     const organizationId = formData.get('organization_id') as string;
     const createEvents = formData.get('create_events') === 'true';
+    const teamIdsJson = formData.get('team_ids') as string | null;
+    let selectedTeamIds: string[] = [];
+
+    // Parse team IDs if provided
+    if (teamIdsJson) {
+      try {
+        selectedTeamIds = JSON.parse(teamIdsJson);
+      } catch (e) {
+        console.error('Failed to parse team_ids:', e);
+      }
+    }
 
     if (!file || !entityType || !organizationId) {
       return NextResponse.json(
@@ -340,25 +351,37 @@ export async function POST(req: NextRequest) {
     }
 
     // Create events if checkbox was checked
-    // Events are created at organization level (all teams in org can see them)
+    // Events are created for selected teams (or all teams if no selection provided)
     if (createEvents && competitionIds.length > 0) {
       console.log(`Creating events for ${competitionIds.length} competitions...`);
 
-      // Get all teams in this organization
-      const { data: orgTeams, error: teamsError } = await supabaseAdmin
-        .from('teams')
-        .select('id')
-        .eq('organization_id', organizationId)
-        .eq('is_active', true);
+      let teamsToCreateEventsFor: { id: string }[] = [];
 
-      if (teamsError) {
-        console.error('Error fetching teams:', teamsError);
-        errors.push(`Failed to fetch teams: ${teamsError.message}`);
-      } else if (!orgTeams || orgTeams.length === 0) {
-        console.log('No active teams found in organization - skipping event creation');
-        errors.push('No active teams found - events not created. Please create at least one team first.');
+      // If specific teams were selected, use those
+      if (selectedTeamIds.length > 0) {
+        console.log(`Using ${selectedTeamIds.length} selected teams for event creation`);
+        teamsToCreateEventsFor = selectedTeamIds.map(id => ({ id }));
       } else {
-        console.log(`Found ${orgTeams.length} active teams for event creation`);
+        // Otherwise, get all active teams in the organization
+        const { data: orgTeams, error: teamsError } = await supabaseAdmin
+          .from('teams')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .eq('is_active', true);
+
+        if (teamsError) {
+          console.error('Error fetching teams:', teamsError);
+          errors.push(`Failed to fetch teams: ${teamsError.message}`);
+        } else if (!orgTeams || orgTeams.length === 0) {
+          console.log('No active teams found in organization - skipping event creation');
+          errors.push('No active teams found - events not created. Please create at least one team first.');
+        } else {
+          console.log(`Found ${orgTeams.length} active teams for event creation`);
+          teamsToCreateEventsFor = orgTeams;
+        }
+      }
+
+      if (teamsToCreateEventsFor.length > 0) {
         // Get or create a season for this organization
         const currentYear = new Date().getFullYear();
         const { data: season, error: seasonFetchError } = await supabaseAdmin
@@ -413,8 +436,8 @@ export async function POST(req: NextRequest) {
               continue;
             }
 
-            // Create event for each team in the organization
-            for (const team of orgTeams) {
+            // Create event for each selected team
+            for (const team of teamsToCreateEventsFor) {
               try {
                 const { error: eventError } = await supabaseAdmin
                   .from('events')
