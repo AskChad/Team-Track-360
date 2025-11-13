@@ -84,8 +84,11 @@ export async function GET(
       .single();
 
     if (eventError || !event) {
+      console.error('Event fetch error:', eventError);
+      console.error('Event ID:', eventId);
+      console.error('Event data:', event);
       return NextResponse.json(
-        { success: false, error: 'Event not found' },
+        { success: false, error: 'Event not found', details: eventError?.message || 'No event data returned' },
         { status: 404 }
       );
     }
