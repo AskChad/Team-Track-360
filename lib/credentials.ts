@@ -63,7 +63,7 @@ export async function getOrganizationCredential(
     throw new Error(`Failed to fetch organization credentials: ${error.message}`);
   }
 
-  const encryptedValue = org?.[credentialType];
+  const encryptedValue = (org as any)?.[credentialType];
 
   if (!encryptedValue) {
     return null;
@@ -106,7 +106,7 @@ export async function getOrganizationCredentials(
   const result: Record<string, string | null> = {};
 
   for (const credType of credentialTypes) {
-    const encryptedValue = org?.[credType];
+    const encryptedValue = (org as any)?.[credType];
     if (encryptedValue) {
       try {
         result[credType] = decrypt(encryptedValue);
@@ -143,7 +143,7 @@ export async function hasOrganizationCredential(
     .eq('id', organizationId)
     .single();
 
-  return !!org?.[credentialType];
+  return !!(org as any)?.[credentialType];
 }
 
 /**
@@ -174,7 +174,7 @@ export async function checkOrganizationCredentials(
   const result: Record<string, boolean> = {};
 
   for (const credType of credentialTypes) {
-    result[credType] = !!org?.[credType];
+    result[credType] = !!(org as any)?.[credType];
   }
 
   return result;
