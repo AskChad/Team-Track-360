@@ -72,7 +72,6 @@ export async function GET(
           id,
           user_id,
           response,
-          response_time,
           profiles:user_id (
             id,
             full_name,
