@@ -65,13 +65,13 @@ export async function PUT(
         ...(is_active !== undefined && { is_active }),
       })
       .eq('id', params.id)
-      .select(\`
+      .select(`
         *,
         sports:sport_id (
           id,
           name
         )
-      \`)
+      `)
       .single();
 
     if (error) {

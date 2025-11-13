@@ -20,13 +20,13 @@ export async function GET(req: NextRequest) {
     // Get all weight classes with sport info
     const { data: weightClasses, error } = await supabaseAdmin
       .from('weight_classes')
-      .select(\`
+      .select(`
         *,
         sports:sport_id (
           id,
           name
         )
-      \`)
+      `)
       .order('weight', { ascending: true });
 
     if (error) {
@@ -111,13 +111,13 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         is_active: is_active !== undefined ? is_active : true,
       })
-      .select(\`
+      .select(`
         *,
         sports:sport_id (
           id,
           name
         )
-      \`)
+      `)
       .single();
 
     if (error) {
