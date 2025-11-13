@@ -86,7 +86,7 @@ export default function UploadCompetitionModal({
       });
       const data = await response.json();
       if (data.success) {
-        const teams = data.data || [];
+        const teams = data.data?.teams || [];
         setOrgTeams(teams);
 
         // Auto-select all teams (default checked)
