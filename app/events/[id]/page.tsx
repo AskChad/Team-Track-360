@@ -92,7 +92,10 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
       }
 
       const response = await fetch(`/api/events/${params.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        },
       });
 
       if (!response.ok) {
