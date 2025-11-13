@@ -445,6 +445,20 @@ export async function POST(req: NextRequest) {
             // Create event for each selected team
             for (const team of teamsToCreateEventsFor) {
               try {
+                // Check for duplicate event (same competition + team)
+                const { data: existingEvent } = await supabaseAdmin
+                  .from('events')
+                  .select('id')
+                  .eq('competition_id', competitionId)
+                  .eq('team_id', team.id)
+                  .limit(1)
+                  .maybeSingle();
+
+                if (existingEvent) {
+                  console.log(`Event already exists for ${comp.event_name} + team ${team.id} - skipping`);
+                  continue;
+                }
+
                 const { error: eventError } = await supabaseAdmin
                   .from('events')
                   .insert({
