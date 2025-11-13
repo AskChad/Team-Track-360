@@ -18,6 +18,10 @@ interface Event {
   arrival_time?: string;        // New: When participants should arrive
   start_datetime?: string;      // New: Full start date/time
   end_datetime?: string;        // New: Full end date/time (for multi-day events)
+  logo_url?: string;            // Event logo
+  header_image_url?: string;    // Event banner/header image
+  primary_color?: string;       // Primary color for gradient
+  secondary_color?: string;     // Secondary color for gradient
   location_id?: string;
   status: string;
   weigh_in_time?: string;
@@ -263,33 +267,55 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-wrestling-dark via-wrestling-navy to-wrestling-blue text-white">
+      {/* Header with Banner/Gradient */}
+      <div
+        className="relative text-white"
+        style={
+          event.header_image_url
+            ? {
+                backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${event.header_image_url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : {
+                background: `linear-gradient(135deg, ${event.primary_color || '#1E3A8A'} 0%, ${event.secondary_color || event.primary_color || '#3B82F6'} 100%)`,
+              }
+        }
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Link href="/events" className="text-gray-200 hover:text-white mb-2 inline-block">
+            ← Back to Events
+          </Link>
           <div className="flex justify-between items-center">
-            <div>
-              <Link href="/events" className="text-gray-200 hover:text-white mb-2 inline-block">
-                ← Back to Events
-              </Link>
-              <h1 className="text-3xl font-bold">{event.name}</h1>
-              <div className="flex gap-2 mt-2">
-                {event.event_types && (
-                  <span
-                    className="inline-block px-2 py-1 text-sm font-bold rounded"
-                    style={{ backgroundColor: event.event_types.color || '#4B5563' }}
-                  >
-                    {event.event_types.name}
+            <div className="flex items-center gap-4">
+              {event.logo_url && (
+                <img
+                  src={event.logo_url}
+                  alt={event.name}
+                  className="h-24 w-24 object-contain bg-white/10 backdrop-blur-sm rounded-lg p-2"
+                />
+              )}
+              <div>
+                <h1 className="text-3xl font-bold">{event.name}</h1>
+                <div className="flex gap-2 mt-2">
+                  {event.event_types && (
+                    <span
+                      className="inline-block px-2 py-1 text-sm font-bold rounded"
+                      style={{ backgroundColor: event.event_types.color || '#4B5563' }}
+                    >
+                      {event.event_types.name}
+                    </span>
+                  )}
+                  <span className={`inline-block px-2 py-1 text-sm font-bold rounded ${
+                    event.status === 'scheduled' ? 'bg-blue-500' :
+                    event.status === 'in_progress' ? 'bg-green-500' :
+                    event.status === 'completed' ? 'bg-gray-500' :
+                    event.status === 'cancelled' ? 'bg-red-500' :
+                    'bg-yellow-500'
+                  }`}>
+                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
                   </span>
-                )}
-                <span className={`inline-block px-2 py-1 text-sm font-bold rounded ${
-                  event.status === 'scheduled' ? 'bg-blue-500' :
-                  event.status === 'in_progress' ? 'bg-green-500' :
-                  event.status === 'completed' ? 'bg-gray-500' :
-                  event.status === 'cancelled' ? 'bg-red-500' :
-                  'bg-yellow-500'
-                }`}>
-                  {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-                </span>
+                </div>
               </div>
             </div>
             <div className="flex gap-4">
@@ -505,6 +531,85 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                     onChange={(e) => setFormData({ ...formData, check_in_time: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
                   />
+                </div>
+              </div>
+
+              {/* Branding Section */}
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-bold text-gray-900">Event Branding</h3>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Logo URL
+                    <span className="text-xs font-normal text-gray-500 ml-2">Image URL for event logo</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.logo_url || ''}
+                    onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                    placeholder="https://example.com/logo.png"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    Header Banner URL
+                    <span className="text-xs font-normal text-gray-500 ml-2">Image URL for header background</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.header_image_url || ''}
+                    onChange={(e) => setFormData({ ...formData, header_image_url: e.target.value })}
+                    placeholder="https://example.com/banner.jpg"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Primary Color
+                      <span className="text-xs font-normal text-gray-500 ml-2">Hex color (e.g., #1E3A8A)</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={formData.primary_color || '#1E3A8A'}
+                        onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={formData.primary_color || ''}
+                        onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                        placeholder="#1E3A8A"
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      Secondary Color
+                      <span className="text-xs font-normal text-gray-500 ml-2">Hex color (e.g., #3B82F6)</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={formData.secondary_color || '#3B82F6'}
+                        onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={formData.secondary_color || ''}
+                        onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                        placeholder="#3B82F6"
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
