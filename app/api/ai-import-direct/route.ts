@@ -308,18 +308,15 @@ export async function POST(req: NextRequest) {
         const contactFirstName = nameParts[0] || null;
         const contactLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
 
-        // Build description with all the extracted data
+        // Build description with style, date, weigh-in, and registration info
         const descriptionParts = [];
         if (comp.style) descriptionParts.push(comp.style);
-        if (comp.divisions_included) descriptionParts.push(`Divisions: ${comp.divisions_included}`);
         if (comp.date) descriptionParts.push(`Date: ${comp.date}`);
         if (comp.registration_weighin_time) descriptionParts.push(`Weigh-in: ${comp.registration_weighin_time}`);
         if (comp.registration_url) descriptionParts.push(`Registration: ${comp.registration_url}`);
-        if (comp.contact_name) descriptionParts.push(`Contact: ${comp.contact_name}`);
-        if (comp.contact_phone) descriptionParts.push(`Phone: ${comp.contact_phone}`);
-        if (comp.contact_email) descriptionParts.push(`Email: ${comp.contact_email}`);
+        if (comp.divisions_excluded) descriptionParts.push(`Excluded: ${comp.divisions_excluded}`);
 
-        // Create competition (only using columns that exist in schema)
+        // Create competition with separate contact and divisions fields
         const { data: newCompetition, error: compError } = await supabaseAdmin
           .from('competitions')
           .insert({
@@ -329,6 +326,13 @@ export async function POST(req: NextRequest) {
             description: descriptionParts.join('\n'),
             competition_type: 'tournament',
             default_location_id: locationId,
+            // Contact fields
+            contact_first_name: contactFirstName,
+            contact_last_name: contactLastName,
+            contact_email: comp.contact_email || null,
+            contact_phone: comp.contact_phone || null,
+            // Divisions field
+            divisions: comp.divisions_included || null,
           })
           .select('id')
           .single();
