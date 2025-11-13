@@ -21,6 +21,19 @@ if (JWT_SECRET.length < 64) {
 }
 
 /**
+ * Custom Authentication Error
+ */
+export class AuthError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode: number = 401) {
+    super(message);
+    this.name = 'AuthError';
+    this.statusCode = statusCode;
+  }
+}
+
+/**
  * JWT Payload Interface
  */
 export interface JWTPayload {
@@ -103,19 +116,19 @@ export function extractTokenFromHeader(authHeader: string | null): string | null
  *
  * @param authHeader - Authorization header from request
  * @returns Decoded token payload
- * @throws Error if token is invalid
+ * @throws AuthError if token is invalid
  */
 export function requireAuth(authHeader: string | null): JWTPayload {
   const token = extractTokenFromHeader(authHeader);
 
   if (!token) {
-    throw new Error('No authentication token provided');
+    throw new AuthError('No authentication token provided', 401);
   }
 
   const payload = verifyToken(token);
 
   if (!payload) {
-    throw new Error('Invalid or expired token');
+    throw new AuthError('Invalid or expired token', 401);
   }
 
   return payload;

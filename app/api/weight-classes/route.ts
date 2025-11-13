@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, AuthError } from '@/lib/auth';
 
 /**
  * GET - List all weight classes
@@ -44,6 +44,12 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Weight classes GET error:', error);
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.statusCode }
+      );
+    }
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to fetch weight classes' },
       { status: 500 }
@@ -136,6 +142,12 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Weight classes POST error:', error);
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.statusCode }
+      );
+    }
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to create weight class' },
       { status: 500 }
