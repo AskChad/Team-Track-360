@@ -82,6 +82,9 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Event>>({});
+  const [uploading, setUploading] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [headerFile, setHeaderFile] = useState<File | null>(null);
 
   // Helper function to convert ISO datetime to datetime-local format
   const toDateTimeLocal = (isoString?: string) => {
@@ -192,28 +195,78 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     }
   };
 
+  const uploadImage = async (file: File, type: 'logo' | 'header'): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', type);
+      formData.append('eventId', params.id);
+
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        return data.url;
+      }
+      return null;
+    } catch (err) {
+      console.error('Upload error:', err);
+      return null;
+    }
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploading(true);
     try {
       const token = localStorage.getItem('auth_token');
+      let updatedFormData = { ...formData };
+
+      // Upload logo if new file selected
+      if (logoFile) {
+        const logoUrl = await uploadImage(logoFile, 'logo');
+        if (logoUrl) {
+          updatedFormData.logo_url = logoUrl;
+        }
+      }
+
+      // Upload header image if new file selected
+      if (headerFile) {
+        const headerUrl = await uploadImage(headerFile, 'header');
+        if (headerUrl) {
+          updatedFormData.header_image_url = headerUrl;
+        }
+      }
+
       const response = await fetch(`/api/events/${params.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(updatedFormData),
       });
 
       const data = await response.json();
       if (data.success) {
         setEvent(data.data.event);
         setIsEditing(false);
+        setLogoFile(null);
+        setHeaderFile(null);
       } else {
         setError(data.error);
       }
     } catch (err) {
       setError('Failed to update event');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -538,77 +591,65 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
               <div className="space-y-4 pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-bold text-gray-900">Event Branding</h3>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Logo URL
-                    <span className="text-xs font-normal text-gray-500 ml-2">Image URL for event logo</span>
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.logo_url || ''}
-                    onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                    placeholder="https://example.com/logo.png"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Event Logo</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    />
+                    {event?.logo_url && !logoFile && (
+                      <p className="text-xs text-gray-500 mt-1">Current logo set</p>
+                    )}
+                    {logoFile && (
+                      <p className="text-xs text-green-600 mt-1">New logo selected: {logoFile.name}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Recommended: 200x200px (square). Displays on header.
+                    </p>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Header Banner URL
-                    <span className="text-xs font-normal text-gray-500 ml-2">Image URL for header background</span>
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.header_image_url || ''}
-                    onChange={(e) => setFormData({ ...formData, header_image_url: e.target.value })}
-                    placeholder="https://example.com/banner.jpg"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                  />
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Header Banner</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
+                    />
+                    {event?.header_image_url && !headerFile && (
+                      <p className="text-xs text-gray-500 mt-1">Current header set</p>
+                    )}
+                    {headerFile && (
+                      <p className="text-xs text-green-600 mt-1">New header selected: {headerFile.name}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Recommended: 1200x200px (6:1 ratio). Replaces gradient background.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">
-                      Primary Color
-                      <span className="text-xs font-normal text-gray-500 ml-2">Hex color (e.g., #1E3A8A)</span>
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={formData.primary_color || '#1E3A8A'}
-                        onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={formData.primary_color || ''}
-                        onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                        placeholder="#1E3A8A"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                      />
-                    </div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Primary Color</label>
+                    <input
+                      type="color"
+                      value={formData.primary_color || '#1E3A8A'}
+                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                      className="w-full h-10 border border-gray-300 rounded-lg"
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">
-                      Secondary Color
-                      <span className="text-xs font-normal text-gray-500 ml-2">Hex color (e.g., #3B82F6)</span>
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={formData.secondary_color || '#3B82F6'}
-                        onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={formData.secondary_color || ''}
-                        onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                        placeholder="#3B82F6"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wrestling-blue"
-                      />
-                    </div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Secondary Color</label>
+                    <input
+                      type="color"
+                      value={formData.secondary_color || '#3B82F6'}
+                      onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                      className="w-full h-10 border border-gray-300 rounded-lg"
+                    />
                   </div>
                 </div>
               </div>
@@ -616,13 +657,18 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
               <div className="flex gap-4 pt-4">
                 <button
                   type="submit"
-                  className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright"
+                  disabled={uploading}
+                  className="bg-wrestling-blue text-white px-6 py-3 rounded-lg font-bold hover:bg-wrestling-bright disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Save Changes
+                  {uploading ? 'Uploading...' : 'Save Changes'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    setIsEditing(false);
+                    setLogoFile(null);
+                    setHeaderFile(null);
+                  }}
                   className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
                 >
                   Cancel
