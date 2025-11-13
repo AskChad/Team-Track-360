@@ -386,12 +386,13 @@ export async function POST(req: NextRequest) {
       }
 
       if (teamsToCreateEventsFor.length > 0) {
-        // Get or create a season for this organization
+        // Get or create a season for this organization and sport
         const currentYear = new Date().getFullYear();
         const { data: season, error: seasonFetchError } = await supabaseAdmin
           .from('seasons')
           .select('id')
           .eq('organization_id', organizationId)
+          .eq('sport_id', sportId)
           .eq('name', `${currentYear} Season`)
           .maybeSingle();
 
@@ -407,6 +408,7 @@ export async function POST(req: NextRequest) {
             .from('seasons')
             .insert({
               organization_id: organizationId,
+              sport_id: sportId,
               name: `${currentYear} Season`,
               start_date: `${currentYear}-01-01`,
               end_date: `${currentYear}-12-31`,
