@@ -164,10 +164,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          max_attendees: formData.max_attendees ? parseInt(formData.max_attendees.toString()) : null,
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
